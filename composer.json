@@ -1,0 +1,51 @@
+{
+    "name": "webriq/gridguyz-installer",
+    "description": "Composer installer for types: gridguyz-module & gridguyz-modules",
+    "type": "composer-installer",
+    "license": "CC-BY-SA-3.0",
+    "keywords": [
+        "gridguyz",
+        "composer-installer",
+        "gridguyz-module",
+        "gridguyz-modules"
+    ],
+    "homepage": "http://gridguyz.com/",
+    "authors": [
+        {
+            "name": "Mihály Farkas",
+            "email": "mihaly.farkas@megaweb.hu",
+            "homepage": "http://gridguyz.com/",
+            "role": "Developer"
+        },
+        {
+            "name": "David Pozsar",
+            "email": "david.pozsar@megaweb.hu",
+            "homepage": "http://gridguyz.com/",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "email": "dev@megaweb.hu",
+        "source": "https://github.com/webriq/gridguyz-googlesiteverification"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/composer/composer.git"
+        }
+    ],
+    "require": {
+        "php": ">=5.4"
+    },
+    "require-dev": {
+        "composer/composer": "*"
+    },
+    "autoload": {
+        "psr-0": {
+            "Grid\\Installer": "src/"
+        }
+    },
+    "extra": {
+        "class": "Grid\\Installer\\ModuleInstaller"
+    }
+}

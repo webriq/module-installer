@@ -282,15 +282,7 @@ class ModuleInstaller extends LibraryInstaller
             foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
             {
                 echo __METHOD__, ': ', PHP_EOL;
-
-                var_dump( array(
-                    'in path'       => $path,
-                    'in dir'        => $dir,
-                    'filename'      => $entry->getFilename(),
-                    'subpathname'   => $entry->getSubPathname(),
-                    'pathname'      => $entry->getPathname(),
-                ) );
-
+                var_dump( $entry );
                 echo PHP_EOL, PHP_EOL;
 
                 $dest = $this->publicDir

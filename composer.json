@@ -1,7 +1,7 @@
 {
     "name": "webriq/gridguyz-installer",
-    "description": "Composer installer for types: gridguyz-module & gridguyz-modules",
     "type": "composer-installer",
+    "description": "Composer installer for types: gridguyz-module & gridguyz-modules",
     "license": "CC-BY-SA-3.0",
     "keywords": [
         "gridguyz",
@@ -28,17 +28,8 @@
         "email": "dev@megaweb.hu",
         "source": "https://github.com/webriq/gridguyz-googlesiteverification"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/composer/composer.git"
-        }
-    ],
     "require": {
         "php": ">=5.4"
-    },
-    "require-dev": {
-        "composer/composer": "*"
     },
     "autoload": {
         "psr-0": {

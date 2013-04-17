@@ -63,7 +63,9 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * {@inheritDoc}
      */
-    public function __construct( IOInterface $io, Composer $composer, $type = self::TYPE_MODULE )
+    public function __construct( IOInterface $io,
+                                 Composer $composer,
+                                 $type = self::TYPE_MODULE )
     {
         parent::__construct( $io, $composer, $type );
         $extra = (array) $composer->getConfig()->get( 'extra' );
@@ -110,57 +112,167 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * {@inheritDoc}
      */
-    public function install( InstalledRepositoryInterface $repo, PackageInterface $package )
+    public function install( InstalledRepositoryInterface $repo,
+                             PackageInterface $package )
     {
         parent::install( $repo, $package );
-        $this->installPublic( $package );
+
+        foreach ( $this->getModulesPaths( $package ) as $path )
+        {
+            $this->installModule( $path, $package );
+        }
     }
 
     /**
      * {@inheritDoc}
      */
-    public function update( InstalledRepositoryInterface $repo, PackageInterface $initial, PackageInterface $target )
+    public function update( InstalledRepositoryInterface $repo,
+                            PackageInterface $initial,
+                            PackageInterface $target )
     {
         if ( $repo->hasPackage( $initial ) )
         {
-            $this->removePublic( $initial );
+            foreach ( $this->getModulesPaths( $initial ) as $path )
+            {
+                $this->beforeUpdateModule( $path, $initial );
+            }
         }
 
         parent::update( $repo, $initial, $target );
-        $this->installPublic( $target );
+
+        foreach ( $this->getModulesPaths( $target ) as $path )
+        {
+            $this->beforeUpdateModule( $path, $target );
+        }
     }
 
     /**
      * {@inheritDoc}
      */
-    public function uninstall( InstalledRepositoryInterface $repo, PackageInterface $package )
+    public function uninstall( InstalledRepositoryInterface $repo,
+                               PackageInterface $package )
     {
         if ( $repo->hasPackage( $package ) )
         {
-            $this->removePublic( $package );
+            foreach ( $this->getModulesPaths( $package ) as $path )
+            {
+                $this->uninstallModule( $path, $package );
+            }
         }
 
         parent::uninstall( $repo, $package );
     }
 
     /**
-     * Install files to public-dir
+     * Get modules' path
      *
+     * @param   PackageInterface $package
+     * @return  array|\Traversable
+     */
+    protected function getModulesPaths( PackageInterface $package )
+    {
+        $path = $this->getInstallPath( $package );
+
+        switch ( $package->getType() )
+        {
+            case static::TYPE_MODULE:
+                return array( $path );
+
+            case static::TYPE_MODULES:
+                $extra  = (array) $package->getExtra();
+                $module = isset( $extra['module-dir'] )
+                        ? trim( $extra['module-dir'], '/' )
+                        : 'module';
+                return new ModuleDirIterator( $path . '/' . $module );
+
+            default:
+                throw new RuntimeException( aprintf(
+                    '%s: package-type "%s" does not supported',
+                    __METHOD__,
+                    $package->getType()
+                ) );
+        }
+    }
+
+    /**
+     * Install a module
+     *
+     * @param   string              $path
      * @param   PackageInterface    $package
      * @return  void
      */
-    protected function installPublic( PackageInterface $package )
+    protected function installModule( $path, PackageInterface $package )
     {
         $extra  = (array) $package->getExtra();
         $public = isset( $extra['public-dir'] )
                 ? trim( $extra['public-dir'], '/' )
                 : static::DEFAULT_PUBLIC_DIR;
 
-        $base = $this->getInstallPath( $package ) . '/' . $public;
+        $this->copyPublic( $path . '/' . $public );
+    }
 
+    /**
+     * Before update a module
+     *
+     * @param   string              $path
+     * @param   PackageInterface    $package
+     * @return  void
+     */
+    protected function beforeUpdateModule( $path, PackageInterface $package )
+    {
+        $extra  = (array) $package->getExtra();
+        $public = isset( $extra['public-dir'] )
+                ? trim( $extra['public-dir'], '/' )
+                : static::DEFAULT_PUBLIC_DIR;
+
+        $this->removePublic( $path . '/' . $public );
+    }
+
+    /**
+     * After update a module
+     *
+     * @param   string              $path
+     * @param   PackageInterface    $package
+     * @return  void
+     */
+    protected function afterUpdateModule( $path, PackageInterface $package )
+    {
+        $extra  = (array) $package->getExtra();
+        $public = isset( $extra['public-dir'] )
+                ? trim( $extra['public-dir'], '/' )
+                : static::DEFAULT_PUBLIC_DIR;
+
+        $this->copyPublic( $path . '/' . $public );
+    }
+
+    /**
+     * Install a module
+     *
+     * @param   string              $path
+     * @param   PackageInterface    $package
+     * @return  void
+     */
+    protected function uninstallModule( $path, PackageInterface $package )
+    {
+        $extra  = (array) $package->getExtra();
+        $public = isset( $extra['public-dir'] )
+                ? trim( $extra['public-dir'], '/' )
+                : static::DEFAULT_PUBLIC_DIR;
+
+        $this->removePublic( $path . '/' . $public );
+    }
+
+    /**
+     * Copy files to public-dir
+     *
+     * @param   string  $path
+     * @return  void
+     */
+    protected function copyPublic( $path )
+    {
         foreach ( static::$subDirs as $sub )
         {
-            $dir = $base . '/' . $sub;
+            $dir = $path . '/' . $sub;
 
             if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {
@@ -191,18 +303,11 @@ class ModuleInstaller extends LibraryInstaller
      * @param   PackageInterface    $package
      * @return  void
      */
-    protected function removePublic( PackageInterface $package )
+    protected function removePublic( $path )
     {
-        $extra  = (array) $package->getExtra();
-        $public = isset( $extra['public-dir'] )
-                ? trim( $extra['public-dir'], '/' )
-                : static::DEFAULT_PUBLIC_DIR;
-
-        $base = $this->getInstallPath( $package ) . '/' . $public;
-
         foreach ( static::$subDirs as $sub )
         {
-            $dir = $base . '/' . $sub;
+            $dir = $path . '/' . $sub;
 
             if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {

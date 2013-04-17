@@ -270,6 +270,8 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function copyPublic( $path )
     {
+        echo __METHOD__, ': ', $path, PHP_EOL;
+
         foreach ( static::$subDirs as $sub )
         {
             $dir = $path . '/' . $sub;
@@ -305,6 +307,8 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function removePublic( $path )
     {
+        echo __METHOD__, ': ', $path, PHP_EOL;
+
         foreach ( static::$subDirs as $sub )
         {
             $dir = $path . '/' . $sub;

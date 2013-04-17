@@ -156,24 +156,31 @@ class ModuleInstaller extends LibraryInstaller
                 ? trim( $extra['public-dir'], '/' )
                 : static::DEFAULT_PUBLIC_DIR;
 
-        $dir = $this->getInstallPath( $package ) . '/' . $public;
+        $base = $this->getInstallPath( $package ) . '/' . $public;
 
-        if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
+        foreach ( static::$subDirs as $sub )
         {
-            return;
-        }
+            $dir = $base . '/' . $sub;
 
-        foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
-        {
-            $sub = ltrim( $entry->getSubPathname(), '/' );
-
-            if ( $entry->isDir() )
+            if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {
-                mkdir( $this->publicDir . '/' . $sub, 0777, true );
+                continue;
             }
-            else if ( $entry->isFile() )
+
+            foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
             {
-                copy( $entry->getPathname(), $this->publicDir . '/' . $sub );
+                $dest = $this->publicDir
+                      . '/' . $sub
+                      . '/' . ltrim( $entry->getSubPathname(), '/' );
+
+                if ( $entry->isDir() )
+                {
+                    mkdir( $dest, 0777, true );
+                }
+                else if ( $entry->isFile() )
+                {
+                    copy( $entry->getPathname(), $dest );
+                }
             }
         }
     }
@@ -191,24 +198,31 @@ class ModuleInstaller extends LibraryInstaller
                 ? trim( $extra['public-dir'], '/' )
                 : static::DEFAULT_PUBLIC_DIR;
 
-        $dir = $this->getInstallPath( $package ) . '/' . $public;
+        $base = $this->getInstallPath( $package ) . '/' . $public;
 
-        if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
+        foreach ( static::$subDirs as $sub )
         {
-            return;
-        }
+            $dir = $base . '/' . $sub;
 
-        foreach ( PublicDirIterator::flattern( $dir, false ) as $entry )
-        {
-            $sub = ltrim( $entry->getSubPathname(), '/' );
-
-            if ( $entry->isDir() )
+            if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {
-                rmdir( $this->publicDir . '/' . $sub );
+                continue;
             }
-            else if ( $entry->isFile() )
+
+            foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
             {
-                unlink( $this->publicDir . '/' . $sub );
+                $dest = $this->publicDir
+                      . '/' . $sub
+                      . '/' . ltrim( $entry->getSubPathname(), '/' );
+
+                if ( $entry->isDir() )
+                {
+                    rmdir( $dest );
+                }
+                else if ( $entry->isFile() )
+                {
+                    unlink( $dest );
+                }
             }
         }
     }

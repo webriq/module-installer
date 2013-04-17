@@ -270,8 +270,6 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function copyPublic( $path )
     {
-        echo __METHOD__, ': ', $path, PHP_EOL;
-
         foreach ( static::$subDirs as $sub )
         {
             $dir = $path . '/' . $sub;
@@ -283,6 +281,18 @@ class ModuleInstaller extends LibraryInstaller
 
             foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
             {
+                echo __METHOD__, ': ', PHP_EOL;
+
+                var_dump( array(
+                    'in path'       => $path,
+                    'in dir'        => $dir,
+                    'filename'      => $entry->getFilename(),
+                    'subpathname'   => $entry->getSubPathname(),
+                    'pathname'      => $entry->getPathname(),
+                ) );
+
+                echo PHP_EOL, PHP_EOL;
+
                 $dest = $this->publicDir
                       . '/' . $sub
                       . '/' . ltrim( $entry->getSubPathname(), '/' );
@@ -307,8 +317,6 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function removePublic( $path )
     {
-        echo __METHOD__, ': ', $path, PHP_EOL;
-
         foreach ( static::$subDirs as $sub )
         {
             $dir = $path . '/' . $sub;

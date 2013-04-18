@@ -221,8 +221,8 @@ class ModuleInstaller extends LibraryInstaller
     protected function installModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            'Install gridguyz-module: %s:%s',
-            $package->getPrettyName(),
+            '    Install gridguyz-module: <info>%s</info>:<info>%s</info>',
+            $package->getName(),
             basename( $path )
         ) );
 
@@ -239,8 +239,8 @@ class ModuleInstaller extends LibraryInstaller
     protected function beforeUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            'Before update gridguyz-module: %s:%s',
-            $package->getPrettyName(),
+            '    Before update gridguyz-module: <info>%s</info>:<info>%s</info>',
+            $package->getName(),
             basename( $path )
         ) );
 
@@ -257,8 +257,8 @@ class ModuleInstaller extends LibraryInstaller
     protected function afterUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            'After update gridguyz-module: %s:%s',
-            $package->getPrettyName(),
+            '    After update gridguyz-module: <info>%s</info>:<info>%s</info>',
+            $package->getName(),
             basename( $path )
         ) );
 
@@ -275,8 +275,8 @@ class ModuleInstaller extends LibraryInstaller
     protected function uninstallModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            'Uninstall gridguyz-module: %s:%s',
-            $package->getPrettyName(),
+            '    Uninstall gridguyz-module: <info>%s</info>:<info>%s</info>',
+            $package->getName(),
             basename( $path )
         ) );
 
@@ -318,7 +318,7 @@ class ModuleInstaller extends LibraryInstaller
 
                 if ( $entry->isDir() )
                 {
-                    mkdir( $dest, 0777, true );
+                    @mkdir( $dest, 0777, true );
                 }
                 else if ( $entry->isFile() )
                 {

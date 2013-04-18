@@ -31,6 +31,9 @@
     "require": {
         "php": ">=5.4"
     },
+    "require-dev": {
+        "composer/composer": "*@dev"
+    },
     "autoload": {
         "psr-0": {
             "Grid\\Installer": "src/"

@@ -3,6 +3,11 @@
 namespace Grid\Installer;
 
 use RuntimeException;
+use FilesystemIterator;
+use CallbackFilterIterator;
+use RecursiveIteratorIterator;
+use RecursiveDirectoryIterator;
+use RecursiveCallbackFilterIterator;
 use Composer\Composer;
 use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
@@ -183,7 +188,19 @@ class ModuleInstaller extends LibraryInstaller
                 $module = isset( $extra['module-dir'] )
                         ? trim( $extra['module-dir'], '/' )
                         : 'module';
-                return new ModuleDirIterator( $path . '/' . $module );
+
+                return new CallbackFilterIterator(
+                    new FilesystemIterator(
+                        $path . '/' . $module,
+                        FilesystemIterator::CURRENT_AS_PATHNAME |
+                        FilesystemIterator::KEY_AS_FILENAME |
+                        FilesystemIterator::SKIP_DOTS |
+                        FilesystemIterator::UNIX_PATHS
+                    ),
+                    function ( $current, $key, $iterator ) {
+                        return $iterator->isDir() && '.' !== $key[0];
+                    }
+                );
 
             default:
                 throw new RuntimeException( aprintf(
@@ -203,12 +220,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function installModule( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
-        $public = isset( $extra['public-dir'] )
-                ? trim( $extra['public-dir'], '/' )
-                : static::DEFAULT_PUBLIC_DIR;
-
-        $this->copyPublic( $path . '/' . $public );
+        $this->copyPublic( $path, $package );
     }
 
     /**
@@ -220,12 +232,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function beforeUpdateModule( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
-        $public = isset( $extra['public-dir'] )
-                ? trim( $extra['public-dir'], '/' )
-                : static::DEFAULT_PUBLIC_DIR;
-
-        $this->removePublic( $path . '/' . $public );
+        $this->removePublic( $path, $package );
     }
 
     /**
@@ -237,12 +244,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function afterUpdateModule( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
-        $public = isset( $extra['public-dir'] )
-                ? trim( $extra['public-dir'], '/' )
-                : static::DEFAULT_PUBLIC_DIR;
-
-        $this->copyPublic( $path . '/' . $public );
+        $this->copyPublic( $path, $package );
     }
 
     /**
@@ -254,12 +256,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function uninstallModule( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
-        $public = isset( $extra['public-dir'] )
-                ? trim( $extra['public-dir'], '/' )
-                : static::DEFAULT_PUBLIC_DIR;
-
-        $this->removePublic( $path . '/' . $public );
+        $this->removePublic( $path, $package );
     }
 
     /**
@@ -268,23 +265,29 @@ class ModuleInstaller extends LibraryInstaller
      * @param   string  $path
      * @return  void
      */
-    protected function copyPublic( $path )
+    protected function copyPublic( $path, PackageInterface $package )
     {
+        $extra  = (array) $package->getExtra();
+        $public = isset( $extra['public-dir'] )
+                ? trim( $extra['public-dir'], '/' )
+                : static::DEFAULT_PUBLIC_DIR;
+
+        if ( ! is_dir( $path . '/' . $public ) )
+        {
+            return;
+        }
+
         foreach ( static::$subDirs as $sub )
         {
-            $dir = $path . '/' . $sub;
+            $dir = $path . '/' . $public . '/' . $sub;
 
             if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {
                 continue;
             }
 
-            foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
+            foreach ( $this->getPublicDirIterator( $dir, true ) as $entry )
             {
-                echo __METHOD__, ': ', PHP_EOL;
-                var_dump( $entry );
-                echo PHP_EOL, PHP_EOL;
-
                 $dest = $this->publicDir
                       . '/' . $sub
                       . '/' . ltrim( $entry->getSubPathname(), '/' );
@@ -307,18 +310,28 @@ class ModuleInstaller extends LibraryInstaller
      * @param   PackageInterface    $package
      * @return  void
      */
-    protected function removePublic( $path )
+    protected function removePublic( $path, PackageInterface $package )
     {
+        $extra  = (array) $package->getExtra();
+        $public = isset( $extra['public-dir'] )
+                ? trim( $extra['public-dir'], '/' )
+                : static::DEFAULT_PUBLIC_DIR;
+
+        if ( ! is_dir( $path . '/' . $public ) )
+        {
+            return;
+        }
+
         foreach ( static::$subDirs as $sub )
         {
-            $dir = $path . '/' . $sub;
+            $dir = $path . '/' . $public . '/' . $sub;
 
             if ( ! is_dir( $dir ) || ! is_readable( $dir ) )
             {
                 continue;
             }
 
-            foreach ( PublicDirIterator::flattern( $dir, true ) as $entry )
+            foreach ( $this->getPublicDirIterator( $dir, false ) as $entry )
             {
                 $dest = $this->publicDir
                       . '/' . $sub
@@ -326,14 +339,42 @@ class ModuleInstaller extends LibraryInstaller
 
                 if ( $entry->isDir() )
                 {
-                    rmdir( $dest );
+                    @rmdir( $dest );
                 }
                 else if ( $entry->isFile() )
                 {
-                    unlink( $dest );
+                    @unlink( $dest );
                 }
             }
         }
+    }
+
+    /**
+     * Get public-dir iterator
+     *
+     * @param   string  $path
+     * @param   bool    $selfFirst
+     * @return  RecursiveIteratorIterator
+     */
+    private function getPublicDirIterator( $path, $selfFirst )
+    {
+        return new RecursiveIteratorIterator(
+            new RecursiveCallbackFilterIterator(
+                new RecursiveDirectoryIterator(
+                    $path,
+                    RecursiveDirectoryIterator::CURRENT_AS_SELF |
+                    RecursiveDirectoryIterator::KEY_AS_FILENAME |
+                    RecursiveDirectoryIterator::SKIP_DOTS |
+                    RecursiveDirectoryIterator::UNIX_PATHS
+                ),
+                function ( $current, $key ) {
+                    return '.' !== $key[0];
+                }
+            ),
+            $selfFirst
+                ? RecursiveIteratorIterator::SELF_FIRST
+                : RecursiveIteratorIterator::CHILD_FIRST
+        );
     }
 
 }

@@ -165,7 +165,7 @@ class ModuleInstaller extends LibraryInstaller
 
         foreach ( $this->getModulesPaths( $target ) as $path )
         {
-            $this->beforeUpdateModule( $path, $target );
+            $this->afterUpdateModule( $path, $target );
             $modules++;
         }
 

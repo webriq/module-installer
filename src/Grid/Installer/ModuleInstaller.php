@@ -221,7 +221,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function installModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Install gridguyz-module: <info>%s</info>:<info>%s</info>',
+            '    Install gridguyz-module: <info>%s</info>/<info>%s</info>',
             $package->getName(),
             basename( $path )
         ) );
@@ -239,7 +239,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function beforeUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Before update gridguyz-module: <info>%s</info>:<info>%s</info>',
+            '    Before update gridguyz-module: <info>%s</info>/<info>%s</info>',
             $package->getName(),
             basename( $path )
         ) );
@@ -257,7 +257,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function afterUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    After update gridguyz-module: <info>%s</info>:<info>%s</info>',
+            '    After update gridguyz-module: <info>%s</info>/<info>%s</info>',
             $package->getName(),
             basename( $path )
         ) );
@@ -275,7 +275,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function uninstallModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Uninstall gridguyz-module: <info>%s</info>:<info>%s</info>',
+            '    Uninstall gridguyz-module: <info>%s</info>/<info>%s</info>',
             $package->getName(),
             basename( $path )
         ) );
@@ -322,7 +322,7 @@ class ModuleInstaller extends LibraryInstaller
                 }
                 else if ( $entry->isFile() )
                 {
-                    copy( $entry->getPathname(), $dest );
+                    @copy( $entry->getPathname(), $dest );
                 }
             }
         }

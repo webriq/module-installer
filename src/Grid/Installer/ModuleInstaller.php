@@ -220,6 +220,12 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function installModule( $path, PackageInterface $package )
     {
+        $this->io->write( sprintf(
+            'Install gridguyz-module: %s:%s',
+            $package->getPrettyName(),
+            basename( $path )
+        ) );
+
         $this->copyPublic( $path, $package );
     }
 
@@ -232,6 +238,12 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function beforeUpdateModule( $path, PackageInterface $package )
     {
+        $this->io->write( sprintf(
+            'Before update gridguyz-module: %s:%s',
+            $package->getPrettyName(),
+            basename( $path )
+        ) );
+
         $this->removePublic( $path, $package );
     }
 
@@ -244,6 +256,12 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function afterUpdateModule( $path, PackageInterface $package )
     {
+        $this->io->write( sprintf(
+            'After update gridguyz-module: %s:%s',
+            $package->getPrettyName(),
+            basename( $path )
+        ) );
+
         $this->copyPublic( $path, $package );
     }
 
@@ -256,6 +274,12 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function uninstallModule( $path, PackageInterface $package )
     {
+        $this->io->write( sprintf(
+            'Uninstall gridguyz-module: %s:%s',
+            $package->getPrettyName(),
+            basename( $path )
+        ) );
+
         $this->removePublic( $path, $package );
     }
 

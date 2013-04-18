@@ -122,9 +122,17 @@ class ModuleInstaller extends LibraryInstaller
     {
         parent::install( $repo, $package );
 
+        $modules = 0;
+
         foreach ( $this->getModulesPaths( $package ) as $path )
         {
             $this->installModule( $path, $package );
+            $modules++;
+        }
+
+        if ( $modules )
+        {
+            $this->io->write( '' );
         }
     }
 
@@ -137,17 +145,33 @@ class ModuleInstaller extends LibraryInstaller
     {
         if ( $repo->hasPackage( $initial ) )
         {
+            $modules = 0;
+
             foreach ( $this->getModulesPaths( $initial ) as $path )
             {
                 $this->beforeUpdateModule( $path, $initial );
+                $modules++;
+            }
+
+            if ( $modules )
+            {
+                $this->io->write( '' );
             }
         }
 
         parent::update( $repo, $initial, $target );
 
+        $modules = 0;
+
         foreach ( $this->getModulesPaths( $target ) as $path )
         {
             $this->beforeUpdateModule( $path, $target );
+            $modules++;
+        }
+
+        if ( $modules )
+        {
+            $this->io->write( '' );
         }
     }
 
@@ -159,9 +183,17 @@ class ModuleInstaller extends LibraryInstaller
     {
         if ( $repo->hasPackage( $package ) )
         {
+            $modules = 0;
+
             foreach ( $this->getModulesPaths( $package ) as $path )
             {
                 $this->uninstallModule( $path, $package );
+                $modules++;
+            }
+
+            if ( $modules )
+            {
+                $this->io->write( '' );
             }
         }
 

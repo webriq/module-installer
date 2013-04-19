@@ -53,6 +53,7 @@ class ModuleInstaller extends LibraryInstaller
      * @var array
      */
     protected static $subDirs = array(
+        'app',
         'images',
         'scripts',
         'styles',
@@ -73,7 +74,7 @@ class ModuleInstaller extends LibraryInstaller
                                  $type = self::TYPE_MODULE )
     {
         parent::__construct( $io, $composer, $type );
-        $extra = (array) $composer->getConfig()->get( 'extra' );
+        $extra = $composer->getPackage()->getExtra();
 
         if ( isset( $extra['public-dir'] ) )
         {
@@ -216,7 +217,7 @@ class ModuleInstaller extends LibraryInstaller
                 return array( $path );
 
             case static::TYPE_MODULES:
-                $extra  = (array) $package->getExtra();
+                $extra  = $package->getExtra();
                 $module = isset( $extra['module-dir'] )
                         ? trim( $extra['module-dir'], '/' )
                         : 'module';
@@ -323,7 +324,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function copyPublic( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
+        $extra  = $package->getExtra();
         $public = isset( $extra['public-dir'] )
                 ? trim( $extra['public-dir'], '/' )
                 : static::DEFAULT_PUBLIC_DIR;
@@ -368,7 +369,7 @@ class ModuleInstaller extends LibraryInstaller
      */
     protected function removePublic( $path, PackageInterface $package )
     {
-        $extra  = (array) $package->getExtra();
+        $extra  = $package->getExtra();
         $public = isset( $extra['public-dir'] )
                 ? trim( $extra['public-dir'], '/' )
                 : static::DEFAULT_PUBLIC_DIR;

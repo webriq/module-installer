@@ -31,8 +31,7 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "php": ">=5.4",
-        "webriq/zork": "*"
+        "php": ">=5.4"
     },
     "require-dev": {
         "composer/composer": "*@dev"

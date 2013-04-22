@@ -2,13 +2,12 @@
 
 namespace Grid\Installer;
 
+use PDOException;
 use FilesystemIterator;
 use CallbackFilterIterator;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
 use RecursiveCallbackFilterIterator;
-use Zork\Patcher\Patcher;
-use Zend\Db\Exception as DbException;
 use Composer\Composer;
 use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
@@ -85,9 +84,9 @@ class ModuleInstaller extends LibraryInstaller
     protected $patchData;
 
     /**
-     * Zork patcher
+     * Patcher
      *
-     * @var \Zork\Patcher\Patcher
+     * @var \Grid\Installer\Patcher
      */
     protected $patcher;
 
@@ -154,8 +153,8 @@ class ModuleInstaller extends LibraryInstaller
         $port   = (int) $this->patchData->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
         $user   = $this->patchData->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
         $passwd = $this->patchData->get( 'db', 'password', 'Type your PostgreSQL database\'s password' );
-        $db     = $this->patchData->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
-        $schema = $this->patchData->get( 'db', 'schema', 'Type your PostgreSQL database\'s dbname', 'site' );
+        $dbname = $this->patchData->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
+        $schema = $this->patchData->get( 'db', 'schema', 'Type your PostgreSQL database\'s schema name', 'site' );
 
         if ( ! is_array( $schema ) )
         {
@@ -169,29 +168,21 @@ class ModuleInstaller extends LibraryInstaller
             'port'      => $port,
             'username'  => $user,
             'password'  => $passwd,
-            'dbname'    => $db,
+            'dbname'    => $dbname,
             'schema'    => $schema,
         );
 
-        $this->patcher = new Patcher( $dbConfigData );
-
-        $connection = $this->patcher
-                           ->getDbAdapter()
-                           ->getDriver()
-                           ->getConnection();
-
-        $previous = null;
-
         try
         {
-            $connection->connect();
+            $this->patcher  = new Patcher( $dbConfigData );
+            $db             = $this->patcher->getDb();
         }
-        catch ( DbException\ExceptionInterface $ex )
+        catch ( PDOException $ex )
         {
             $previous = $ex;
         }
 
-        if ( ! $connection->isConnected() )
+        if ( empty( $db ) )
         {
             throw new Exception\RuntimeException(
                 sprintf(
@@ -199,7 +190,7 @@ class ModuleInstaller extends LibraryInstaller
                     __METHOD__,
                     $host,
                     $port,
-                    $db
+                    $dbname
                 ),
                 0,
                 $previous
@@ -208,7 +199,7 @@ class ModuleInstaller extends LibraryInstaller
 
         if ( ! is_file( $dbConfigFile ) )
         {
-            file_put_contents(
+            @file_put_contents(
                 $dbConfigFile,
                 var_export(
                     array(
@@ -261,6 +252,8 @@ class ModuleInstaller extends LibraryInstaller
                             PackageInterface $initial,
                             PackageInterface $target )
     {
+        $this->beforePatches( $initial, $initial->getVersion(), $target->getVersion() );
+
         if ( $repo->hasPackage( $initial ) )
         {
             $modules = 0;
@@ -276,8 +269,6 @@ class ModuleInstaller extends LibraryInstaller
                 $this->io->write( '' );
             }
         }
-
-        $this->beforePatches( $initial, $initial->getVersion(), $target->getVersion() );
 
         parent::update( $repo, $initial, $target );
 

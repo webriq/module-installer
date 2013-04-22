@@ -490,9 +490,9 @@ class Patcher
             if ( $schema )
             {
                 $quoted = static::quoteIdentifier( $schema );
-                $query  = $db->query( 'SELECT TRUE AS "exists"
-                                         FROM information_schema.schemata
-                                        WHERE schema_name = :schema' );
+                $query  = $db->prepare( 'SELECT TRUE AS "exists"
+                                           FROM information_schema.schemata
+                                          WHERE schema_name = :schema' );
 
                 $query->execute( array(
                     'schema' => $schema,

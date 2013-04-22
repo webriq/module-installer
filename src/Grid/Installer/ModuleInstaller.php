@@ -7,6 +7,8 @@ use CallbackFilterIterator;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
 use RecursiveCallbackFilterIterator;
+use Zork\Patcher\Patcher;
+use Zend\Db\Exception as DbException;
 use Composer\Composer;
 use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
@@ -35,6 +37,16 @@ class ModuleInstaller extends LibraryInstaller
      * @const string
      */
     const DEFAULT_PUBLIC_DIR = 'public';
+
+    /**
+     * @const string
+     */
+    const DEFAULT_PATCH_DIR = 'sql';
+
+    /**
+     * @const string
+     */
+    const DEFAULT_DB_CONFIG = 'config/autoload/db.local.php';
 
     /**
      * Supported types
@@ -73,6 +85,13 @@ class ModuleInstaller extends LibraryInstaller
     protected $patchData;
 
     /**
+     * Zork patcher
+     *
+     * @var \Zork\Patcher\Patcher
+     */
+    protected $patcher;
+
+    /**
      * {@inheritDoc}
      */
     public function __construct( IOInterface $io,
@@ -87,7 +106,19 @@ class ModuleInstaller extends LibraryInstaller
             $this->publicDir = rtrim( $extra['public-dir'], '/' );
         }
 
-        $this->patchData = new PatchData($io);
+        $this->patchData = new PatchData( $io );
+
+        $dbConfigFile = static::DEFAULT_DB_CONFIG;
+
+        if ( isset( $extra['db-config'] ) )
+        {
+            $dbConfigFile = ltrim( $extra['db-config'], '/' );
+        }
+
+        if ( is_file( $dbConfigFile ) && is_readable( $dbConfigFile ) )
+        {
+            $this->patchData->addData( include $dbConfigFile );
+        }
 
         if ( isset( $extra['patch-data'] ) )
         {
@@ -118,6 +149,75 @@ class ModuleInstaller extends LibraryInstaller
                 ) );
             }
         }
+
+        $host   = $this->patchData->get( 'db', 'host', 'Type your PostgreSQL database\'s host', 'localhost' );
+        $port   = (int) $this->patchData->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
+        $user   = $this->patchData->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
+        $passwd = $this->patchData->get( 'db', 'password', 'Type your PostgreSQL database\'s password' );
+        $db     = $this->patchData->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
+        $schema = $this->patchData->get( 'db', 'schema', 'Type your PostgreSQL database\'s dbname', 'site' );
+
+        if ( ! is_array( $schema ) )
+        {
+            $schema = array( $schema, '_common' );
+        }
+
+        $dbConfigData = array(
+            'driver'    => 'Pdo',
+            'pdodriver' => 'pgsql',
+            'host'      => $host,
+            'port'      => $port,
+            'username'  => $user,
+            'password'  => $passwd,
+            'dbname'    => $db,
+            'schema'    => $schema,
+        );
+
+        $this->patcher = new Patcher( $dbConfigData );
+
+        $connection = $this->patcher
+                           ->getDbAdapter()
+                           ->getDriver()
+                           ->getConnection();
+
+        $previous = null;
+
+        try
+        {
+            $connection->connect();
+        }
+        catch ( DbException\ExceptionInterface $ex )
+        {
+            $previous = $ex;
+        }
+
+        if ( ! $connection->isConnected() )
+        {
+            throw new Exception\RuntimeException(
+                sprintf(
+                    '%s: Cannot connect to PostgreSQL at %s:%d/%s',
+                    __METHOD__,
+                    $host,
+                    $port,
+                    $db
+                ),
+                0,
+                $previous
+            );
+        }
+
+        if ( ! is_file( $dbConfigFile ) )
+        {
+            file_put_contents(
+                $dbConfigFile,
+                var_export(
+                    array(
+                        'db' => $dbConfigData,
+                    ),
+                    true
+                )
+            );
+        }
     }
 
     /**
@@ -136,6 +236,8 @@ class ModuleInstaller extends LibraryInstaller
     {
         parent::install( $repo, $package );
 
+        $this->beforePatches( $package, 0, $package->getVersion() );
+
         $modules = 0;
 
         foreach ( $this->getModulesPaths( $package ) as $path )
@@ -148,6 +250,8 @@ class ModuleInstaller extends LibraryInstaller
         {
             $this->io->write( '' );
         }
+
+        $this->afterPatches( $package, 0, $package->getVersion() );
     }
 
     /**
@@ -157,11 +261,6 @@ class ModuleInstaller extends LibraryInstaller
                             PackageInterface $initial,
                             PackageInterface $target )
     {
-        echo 'Grid\Core\Model\Filesystem ';
-        var_dump(class_exists('Grid\Core\Model\Filesystem'));
-        echo 'Zork\Data\Table ';
-        var_dump(class_exists('Zork\Data\Table'));
-
         if ( $repo->hasPackage( $initial ) )
         {
             $modules = 0;
@@ -178,6 +277,8 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
+        $this->beforePatches( $initial, $initial->getVersion(), $target->getVersion() );
+
         parent::update( $repo, $initial, $target );
 
         $modules = 0;
@@ -192,6 +293,8 @@ class ModuleInstaller extends LibraryInstaller
         {
             $this->io->write( '' );
         }
+
+        $this->afterPatches( $initial, $initial->getVersion(), $target->getVersion() );
     }
 
     /**
@@ -200,6 +303,8 @@ class ModuleInstaller extends LibraryInstaller
     public function uninstall( InstalledRepositoryInterface $repo,
                                PackageInterface $package )
     {
+        $this->beforePatches( $package, $package->getVersion(), 0 );
+
         if ( $repo->hasPackage( $package ) )
         {
             $modules = 0;
@@ -216,7 +321,81 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
+        $this->afterPatches( $package, $package->getVersion(), 0 );
+
         parent::uninstall( $repo, $package );
+    }
+
+    /**
+     * Run before patches
+     *
+     * @param   \Composer\Package\PackageInterface  $package
+     * @param   type                                $from
+     * @param   type                                $to
+     * @return  void
+     * @throws  Exception\RuntimeException
+     */
+    protected function beforePatches( PackageInterface $package, $from, $to )
+    {
+        $this->runPatchMethod( $package, $from, $to, 'beforePatch' );
+    }
+
+    /**
+     * Run after patches
+     *
+     * @param   \Composer\Package\PackageInterface  $package
+     * @param   type                                $from
+     * @param   type                                $to
+     * @return  void
+     * @throws  Exception\RuntimeException
+     */
+    protected function afterPatches( PackageInterface $package, $from, $to )
+    {
+        $this->runPatchMethod( $package, $from, $to, 'afterPatch' );
+    }
+
+    /**
+     * Run a patch method
+     *
+     * Method could be:
+     * - beforePatch
+     * - afterPatch
+     *
+     * @param   \Composer\Package\PackageInterface $package
+     * @param   string  $from
+     * @param   string  $to
+     * @param   string  $method
+     * @throws  Exception\RuntimeException
+     */
+    private function runPatchMethod( PackageInterface $package, $from, $to, $method )
+    {
+        $extra = $package->getExtra();
+
+        if ( isset( $extra['patch-classes'] ) )
+        {
+            $basePath = rtrim( $this->getInstallPath( $package ), '/' );
+
+            foreach ( (array) $extra['patch-classes'] as $class => $path )
+            {
+                if ( $path )
+                {
+                    require_once $basePath . '/' . ltrim( $path, '/' );
+                }
+
+                if ( ! class_exists( $class ) )
+                {
+                    throw new Exception\RuntimeException( sprintf(
+                        '%s: class "%s" not found at "%s"',
+                        __METHOD__,
+                        $class,
+                        $path
+                    ) );
+                }
+
+                $patch = new $class( $this->patchData );
+                $patch->$method( $from, $to );
+            }
+        }
     }
 
     /**
@@ -278,6 +457,7 @@ class ModuleInstaller extends LibraryInstaller
         ) );
 
         $this->copyPublic( $path, $package );
+        $this->patch( $path, $package, $package->getVersion() );
     }
 
     /**
@@ -314,6 +494,7 @@ class ModuleInstaller extends LibraryInstaller
         ) );
 
         $this->copyPublic( $path, $package );
+        $this->patch( $path, $package, $package->getVersion() );
     }
 
     /**
@@ -332,6 +513,7 @@ class ModuleInstaller extends LibraryInstaller
         ) );
 
         $this->removePublic( $path, $package );
+        $this->patch( $path, $package, 0 );
     }
 
     /**
@@ -360,6 +542,11 @@ class ModuleInstaller extends LibraryInstaller
             {
                 continue;
             }
+
+            $this->io->write( sprintf(
+                '      Copy contents of <info>%s</info> into public',
+                $dir
+            ) );
 
             foreach ( $this->getPublicDirIterator( $dir, true ) as $entry )
             {
@@ -406,6 +593,11 @@ class ModuleInstaller extends LibraryInstaller
                 continue;
             }
 
+            $this->io->write( sprintf(
+                '      Remove contents of <info>%s</info> from public',
+                $dir
+            ) );
+
             foreach ( $this->getPublicDirIterator( $dir, false ) as $entry )
             {
                 $dest = $this->publicDir
@@ -450,6 +642,32 @@ class ModuleInstaller extends LibraryInstaller
                 ? RecursiveIteratorIterator::SELF_FIRST
                 : RecursiveIteratorIterator::CHILD_FIRST
         );
+    }
+
+    /**
+     * Run patch
+     *
+     * @param   string                              $path
+     * @param   \Composer\Package\PackageInterface  $package
+     * @param   string                              $toVersion
+     * @return  void
+     */
+    protected function patch( $path, PackageInterface $package, $toVersion = null )
+    {
+        $extra  = $package->getExtra();
+        $patch  = isset( $extra['patch-dir'] )
+                ? trim( $extra['patch-dir'], '/' )
+                : static::DEFAULT_PATCH_DIR;
+
+        if ( is_dir( $dir = $path . '/' . $patch ) )
+        {
+            $this->io->write( sprintf(
+                '      Run patches at <info>%s</info>',
+                $dir
+            ) );
+
+            $this->patcher->patch( array( $dir ), $toVersion );
+        }
     }
 
 }

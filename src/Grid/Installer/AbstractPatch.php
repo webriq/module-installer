@@ -48,4 +48,40 @@ abstract class AbstractPatch implements PatchInterface
         return empty( $version ) || 0 === version_compare( $version, '0' );
     }
 
+    /**
+     * Detect if two versions are the same
+     *
+     * @param   string  $from
+     * @param   string  $to
+     * @return  bool
+     */
+    protected function isSameVersion( $from, $to )
+    {
+        return $from == $to || 0 === version_compare( $from, $to );
+    }
+
+    /**
+     * Run before patching
+     *
+     * @param   string  $from
+     * @param   string  $to
+     * @return  void
+     */
+    public function beforePatch( $from, $to )
+    {
+        // dummy
+    }
+
+    /**
+     * Run after patching
+     *
+     * @param   string  $from
+     * @param   string  $to
+     * @return  void
+     */
+    public function afterPatch( $from, $to )
+    {
+        // dummy
+    }
+
 }

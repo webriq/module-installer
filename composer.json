@@ -28,8 +28,11 @@
         "email": "dev@megaweb.hu",
         "source": "https://github.com/webriq/gridguyz-googlesiteverification"
     },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
-        "php": ">=5.4"
+        "php": ">=5.4",
+        "webriq/zork": "*"
     },
     "require-dev": {
         "composer/composer": "*@dev"

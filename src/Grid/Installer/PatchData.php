@@ -114,21 +114,28 @@ class PatchData
 
             if ( null !== $default )
             {
-                $question .= ' (default: ' . $default . ')';
+                $question .= ' (default: <info>' . $default . '</info>)';
             }
 
-            $result = $this->io->ask( $question, $default );
+            $result = $this->io->ask( '      ' . $question . ':', $default );
         }
 
-        if ( $throwIfEmpty && empty( $result ) )
+        if ( empty( $result ) )
         {
-            throw new Exception\DomainException( sprintf(
-                '%s: patch-data "%s": "%s", asked as "%s" should not be empty',
-                __METHOD__,
-                $section,
-                $key,
-                $ask
-            ) );
+            if ( $throwIfEmpty )
+            {
+                throw new Exception\DomainException( sprintf(
+                    '%s: patch-data "%s": "%s", asked as "%s" should not be empty',
+                    __METHOD__,
+                    $section,
+                    $key,
+                    $ask
+                ) );
+            }
+        }
+        else
+        {
+            $this->data[$section][$key] = $result;
         }
 
         return $result;

@@ -2,7 +2,6 @@
 
 namespace Grid\Installer;
 
-use RuntimeException;
 use FilesystemIterator;
 use CallbackFilterIterator;
 use RecursiveIteratorIterator;
@@ -67,6 +66,13 @@ class ModuleInstaller extends LibraryInstaller
     protected $publicDir = self::DEFAULT_PUBLIC_DIR;
 
     /**
+     * Custom patch-data
+     *
+     * @var \Grid\Installer\PatchData
+     */
+    protected $patchData;
+
+    /**
      * {@inheritDoc}
      */
     public function __construct( IOInterface $io,
@@ -81,9 +87,16 @@ class ModuleInstaller extends LibraryInstaller
             $this->publicDir = rtrim( $extra['public-dir'], '/' );
         }
 
+        $this->patchData = new PatchData($io);
+
+        if ( isset( $extra['patch-data'] ) )
+        {
+            $this->patchData->addData( $extra['patch-data'] );
+        }
+
         if ( ! is_dir( $this->publicDir ) )
         {
-            throw new RuntimeException( sprintf(
+            throw new Exception\RuntimeException( sprintf(
                 '%s: Public directory "%s" does not exists',
                 __METHOD__,
                 $this->publicDir
@@ -96,7 +109,7 @@ class ModuleInstaller extends LibraryInstaller
 
             if ( ! is_dir( $dir ) || !is_writable( $dir ) )
             {
-                throw new RuntimeException( sprintf(
+                throw new Exception\RuntimeException( sprintf(
                     '%s: Directory "%s" under public directory "%s"' .
                     ' does not exists, or not writable',
                     __METHOD__,
@@ -144,6 +157,11 @@ class ModuleInstaller extends LibraryInstaller
                             PackageInterface $initial,
                             PackageInterface $target )
     {
+        echo 'Grid\Core\Model\Filesystem ';
+        var_dump(class_exists('Grid\Core\Model\Filesystem'));
+        echo 'Zork\Data\Table ';
+        var_dump(class_exists('Zork\Data\Table'));
+
         if ( $repo->hasPackage( $initial ) )
         {
             $modules = 0;

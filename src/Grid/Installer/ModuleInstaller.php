@@ -508,6 +508,57 @@ class ModuleInstaller extends LibraryInstaller
     }
 
     /**
+     * Get path parts
+     *
+     * @param   string  $path
+     * @param   string  $sep
+     * @return  array
+     */
+    private function getPathParts( $path, $sep = '/' )
+    {
+        $sep = $sep[0];
+
+        return explode(
+            $sep,
+            trim(
+                str_replace(
+                    DIRECTORY_SEPARATOR,
+                    $sep,
+                    realpath( $path )
+                ),
+                $sep
+            )
+        );
+    }
+
+    /**
+     * Get relative path
+     *
+     * @param   string  $path
+     * @param   string  $from
+     * @return  string
+     */
+    protected function getRelativePath( $path, $from = '.' )
+    {
+        $path = $this->getPathParts( $path );
+        $from = $this->getPathParts( $from ?: '.' );
+
+        while ( isset( $path[0] ) && isset( $from[0] ) && $path[0] === $from[0] )
+        {
+            array_shift( $path );
+            array_shift( $from );
+        }
+
+        while ( ! empty( $from ) )
+        {
+            array_shift( $from );
+            array_unshift( $path, '..' );
+        }
+
+        return implode( DIRECTORY_SEPARATOR, $path );
+    }
+
+    /**
      * Copy files to public-dir
      *
      * @param   string  $path
@@ -536,7 +587,7 @@ class ModuleInstaller extends LibraryInstaller
 
             $this->io->write( sprintf(
                 '      Copy contents of <info>%s</info> into public',
-                $dir
+                $this->getRelativePath( $dir )
             ) );
 
             foreach ( $this->getPublicDirIterator( $dir, true ) as $entry )
@@ -586,7 +637,7 @@ class ModuleInstaller extends LibraryInstaller
 
             $this->io->write( sprintf(
                 '      Remove contents of <info>%s</info> from public',
-                $dir
+                $this->getRelativePath( $dir )
             ) );
 
             foreach ( $this->getPublicDirIterator( $dir, false ) as $entry )
@@ -654,7 +705,7 @@ class ModuleInstaller extends LibraryInstaller
         {
             $this->io->write( sprintf(
                 '      Run patches at <info>%s</info>',
-                $dir
+                $this->getRelativePath( $dir )
             ) );
 
             $this->patcher->patch( array( $dir ), $toVersion );

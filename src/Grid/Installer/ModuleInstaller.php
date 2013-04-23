@@ -201,12 +201,12 @@ class ModuleInstaller extends LibraryInstaller
         {
             @file_put_contents(
                 $dbConfigFile,
-                var_export(
+                sprintf( 'return %s;', var_export(
                     array(
                         'db' => $dbConfigData,
                     ),
                     true
-                )
+                ) )
             );
         }
     }

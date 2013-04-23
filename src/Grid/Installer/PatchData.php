@@ -2,6 +2,7 @@
 
 namespace Grid\Installer;
 
+use LogicException;
 use Composer\IO\IOInterface;
 
 /**
@@ -94,11 +95,12 @@ class PatchData
      * @param   string          $ask
      * @param   string          $default
      * @param   string|callable $validator
+     * @param   int|false       $attempts
      * @param   bool            $throwIfEmpty
      * @return  string
      * @throws  Exception\DomainException
      */
-    public function get( $section, $key, $ask = null, $default = null, $validator = null, $throwIfEmpty = true )
+    public function get( $section, $key, $ask = null, $default = null, $validator = null, $attempts = 3, $throwIfEmpty = true )
     {
         if ( ! empty( $this->data[$section][$key] ) )
         {
@@ -123,14 +125,26 @@ class PatchData
             if ( is_string( $validator ) && ! function_exists( $validator ) )
             {
                 $pattern   = (string) $validator;
-                $validator = function ( $value ) use ( $pattern ) {
-                    return (bool) preg_match( $pattern, $value );
+                $validator = function ( $value ) use ( $pattern )
+                {
+                    $matches = array();
+
+                    if ( ! preg_match( $pattern, $value, $matches ) )
+                    {
+                        throw new LogicException( sprintf(
+                            '"%s" does not match "%s"',
+                            $value,
+                            $pattern
+                        ) );
+                    }
+
+                    return $matches[0];
                 };
             }
 
             if ( is_callable( $validator ) )
             {
-                $result = $this->io->askAndValidate( $ask, $validator, 3, $default );
+                $result = $this->io->askAndValidate( $ask, $validator, $attempts, $default );
             }
             else
             {

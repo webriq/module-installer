@@ -383,7 +383,7 @@ class ModuleInstaller extends LibraryInstaller
                     ) );
                 }
 
-                $patch = new $class( $this->patchData );
+                $patch = new $class( $this->patchData, $this->patcher->getDb() );
                 $patch->$method( $from, $to );
             }
         }

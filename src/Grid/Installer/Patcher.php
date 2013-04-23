@@ -5,7 +5,6 @@ namespace Grid\Installer;
 use PDO;
 use Exception;
 use Traversable;
-use LogicException;
 use IteratorAggregate;
 use FilesystemIterator;
 use CallbackFilterIterator;
@@ -40,6 +39,13 @@ class Patcher
      * @var bool
      */
     private $isMultisite;
+
+    /**
+     * Schemas' exists
+     *
+     * @var array
+     */
+    private $schemaExists = array();
 
     /**
      * Schemas' cache
@@ -80,6 +86,10 @@ class Patcher
     public function setConfig( array $config = null )
     {
         $this->config = $config;
+        $this->db = null;
+        $this->isMultisite = null;
+        $this->schemaCache = array();
+        $this->versionCache = array();
         return $this;
     }
 
@@ -102,7 +112,7 @@ class Patcher
      */
     protected function setDbSchema( $schemas )
     {
-        $db = $this->db;
+        $db = $this->getDb();
         $oldSchema = null;
 
         if ( $schemas instanceof Traversable )
@@ -127,6 +137,11 @@ class Patcher
             $schemas = $current;
         }
 
+        foreach ( $schemas as $schema )
+        {
+            $this->checkSchemaExists( $schema );
+        }
+
         $db->exec(
             'SET search_path TO ' .
             implode(
@@ -139,6 +154,42 @@ class Patcher
         );
 
         return $oldSchema;
+    }
+
+    /**
+     * Check schema exists
+     *
+     * @param   string $schema
+     * @return  void
+     */
+    protected function checkSchemaExists( $schema )
+    {
+        if ( ! empty( $this->schemaExists[$schema] ) )
+        {
+            return;
+        }
+
+        $exists = false;
+        $db     = $this->getDb();
+        $query  = $db->prepare( 'SELECT TRUE AS "exists"
+                                   FROM information_schema.schemata
+                                  WHERE schema_name = :schema' );
+
+        $query->execute( array(
+            'schema' => $schema,
+        ) );
+
+        while ( $row = $query->fetchObject() )
+        {
+            $exists = $exists || $row->exists;
+        }
+
+        if ( ! $exists )
+        {
+            $db->exec( 'CREATE SCHEMA ' . static::quoteIdentifier( $schema ) );
+        }
+
+        $this->schemaExists[$schema] = true;
     }
 
     /**
@@ -202,6 +253,10 @@ class Patcher
     public function setDb( PDO $db = null )
     {
         $this->db = $db;
+        $this->config = array();
+        $this->isMultisite = null;
+        $this->schemaCache = array();
+        $this->versionCache = array();
         return $this;
     }
 
@@ -461,32 +516,13 @@ class Patcher
     {
         if ( ! isset( $this->versionCache[$schema] ) )
         {
-            $exists = false;
             $db     = $this->getDb();
             $quoted = '';
 
             if ( $schema )
             {
-                $quoted = static::quoteIdentifier( $schema );
-                $query  = $db->prepare( 'SELECT TRUE AS "exists"
-                                           FROM information_schema.schemata
-                                          WHERE schema_name = :schema' );
-
-                $query->execute( array(
-                    'schema' => $schema,
-                ) );
-
-                while ( $row = $query->fetchObject() )
-                {
-                    $exists = $exists || $row->exists;
-                }
-
-                if ( ! $exists )
-                {
-                    $db->exec( 'CREATE SCHEMA ' . $quoted );
-                }
-
-                $quoted .= '.';
+                $this->checkSchemaExists( $schema );
+                $quoted = static::quoteIdentifier( $schema ) . '.';
             }
 
             $db->exec( '

@@ -56,6 +56,13 @@ class Patcher
     private $versionCache = array();
 
     /**
+     * Patch info cache
+     *
+     * @var array
+     */
+    private $patchInfoCache = array();
+
+    /**
      * Get the db-config
      *
      * @return  array
@@ -406,8 +413,6 @@ class Patcher
      */
     protected function patchSchema( $path, $section, $schema = null, $toVersion = null )
     {
-        $db = $this->getDb();
-
         if ( null !== $schema )
         {
             $oldSchema = $this->setDbSchema( $schema );
@@ -428,42 +433,15 @@ class Patcher
             $direction = version_compare( $toVersion, $fromVersion );
         }
 
-        if ( $direction !== 0 )
+        switch ( true )
         {
-            $info = $this->getPatchInfo( $path );
-            $prev = $next = $fromVersion;
+            case $direction > 0:
+                $this->upgradeSchema( $path, $section, $fromVersion, $toVersion, $schema );
+                break;
 
-            while ( true )
-            {
-                $prev = $next;
-                $next = $this->getNextVersion( $info, $direction, $prev, $toVersion );
-
-                if ( ! $next )
-                {
-                    break;
-                }
-
-                foreach ( $info as $patch )
-                {
-                    if ( $patch['from'] == $prev && $patch['to'] == $next )
-                    {
-                        $db->exec( file_get_contents( $patch['path'] ) );
-                    }
-                }
-            }
-
-            if ( null !== $toVersion && $prev !== $toVersion )
-            {
-                throw new LogicException( sprintf(
-                    '%s: section "%s" cannot be patched to version "%s", step from "%s" is missing',
-                    __METHOD__,
-                    $section,
-                    $toVersion,
-                    $prev
-                ) );
-            }
-
-            $this->setVersion( $section, $prev, $schema );
+            case $direction < 0:
+                $this->downgradeSchema( $path, $section, $fromVersion, $toVersion, $schema );
+                break;
         }
 
         if ( null !== $schema )
@@ -590,6 +568,11 @@ class Patcher
      */
     protected function getPatchInfo( $path )
     {
+        if ( isset( $this->patchInfoCache[$path] ) )
+        {
+            return $this->patchInfoCache[$path];
+        }
+
         $iterator = new FilesystemIterator(
             $path,
             FilesystemIterator::CURRENT_AS_PATHNAME |
@@ -623,37 +606,182 @@ class Patcher
             }
         }
 
-        return array_merge( $schema, $data );
+        return $this->patchInfoCache[$path] = array_merge( $schema, $data );
+    }
+
+    /**
+     * Run patches from exact version to exact version
+     *
+     * @param   array   $info
+     * @param   string  $fromVersion
+     * @param   string  $toVersion
+     * @return  void
+     */
+    private function runPatches( $info, $fromVersion, $toVersion )
+    {
+        $db = $this->getDb();
+
+        foreach ( $info as $patch )
+        {
+            if ( $patch['from'] == $fromVersion && $patch['to'] == $toVersion )
+            {
+                $db->exec( file_get_contents( $patch['path'] ) );
+            }
+        }
+    }
+
+    /**
+     * Patch a single schema
+     *
+     * @param   string      $path
+     * @param   string      $section
+     * @param   string      $fromVersion
+     * @param   string|null $toVersion
+     * @param   string|null $schema
+     * @return  void
+     */
+    private function upgradeSchema( $path, $section, $fromVersion, $toVersion = null, $schema = null )
+    {
+        $info = $this->getPatchInfo( $path );
+        $prev = $next = $fromVersion;
+
+        while ( true )
+        {
+            $prev = $next;
+            $next = $this->getNextVersion( $info, $prev, $toVersion );
+
+            if ( ! $next )
+            {
+                break;
+            }
+
+            $this->runPatches( $info, $prev, $next );
+        }
+
+        if ( $prev !== $fromVersion )
+        {
+            $this->setVersion( $section, $prev, $schema );
+        }
+    }
+
+    /**
+     * Patch a single schema
+     *
+     * @param   string      $path
+     * @param   string      $section
+     * @param   string      $fromVersion
+     * @param   string|null $toVersion
+     * @param   string|null $schema
+     * @return  void
+     */
+    private function downgradeSchema( $path, $section, $fromVersion, $toVersion = null, $schema = null )
+    {
+        $info = $this->getPatchInfo( $path );
+        $prev = $next = $fromVersion;
+
+        while ( true )
+        {
+            $prev = $next;
+            $next = $this->getPrevVersion( $info, $prev, $toVersion );
+
+            if ( ! $next )
+            {
+                break;
+            }
+
+            $this->runPatches( $info, $prev, $next );
+        }
+
+        if ( $prev !== $toVersion )
+        {
+            $next = $this->getLastVersion( $info, $prev, $toVersion );
+
+            if ( $next )
+            {
+                $this->runPatches( $info, $prev, $next );
+                $prev = $next;
+            }
+        }
+
+        if ( $prev !== $fromVersion )
+        {
+            $this->setVersion( $section, $prev, $schema );
+        }
     }
 
     /**
      * Get next version
      *
      * @param   array   $info
-     * @param   int     $direction
      * @param   string  $fromVersion
      * @param   string  $toVersion
      * @return  string
      */
-    protected function getNextVersion( $info, $direction, $fromVersion, $toVersion )
+    private function getNextVersion( $info, $fromVersion, $toVersion )
     {
-        $extrema = null;
+        $max = null;
 
         foreach ( $info as $patch )
         {
-            $dir = version_compare( $patch['to'], $patch['from'] );
-
-            if ( $patch['from'] == $fromVersion && $dir === $direction &&
-                // ( is upgrade     && ( no max yet || ( current is greater than max                    && ( no upper bound || current is under the upper bound                ) ) ) )
-                 ( ( $direction > 0 && ( ! $extrema || ( version_compare( $patch['to'], $extrema, '>' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '<=' ) ) ) ) ) ||
-                // ( is downgrade   && ( no min yet || ( current is lesser than min                     && ( no lower bound || current is above the lower bound                ) ) ) )
-                   ( $direction < 0 && ( ! $extrema || ( version_compare( $patch['to'], $extrema, '<' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '>=' ) ) ) ) ) ) )
+            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '>' ) &&
+              // ( no max || ( current is greater than max                && ( no upper bound || current is under the upper bound                ) ) )
+                 ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '<=' ) ) ) ) )
             {
-                $extrema = $patch['to'];
+                $max = $patch['to'];
             }
         }
 
-        return $extrema;
+        return $max;
+    }
+
+    /**
+     * Get prev version
+     *
+     * @param   array   $info
+     * @param   string  $fromVersion
+     * @param   string  $toVersion
+     * @return  string
+     */
+    private function getPrevVersion( $info, $fromVersion, $toVersion )
+    {
+        $min = null;
+
+        foreach ( $info as $patch )
+        {
+            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
+                // ( no min || ( current is lesser than min                 && ( no lower bound || current is above the lower bound                ) ) )
+                   ( ! $min || ( version_compare( $patch['to'], $min, '<' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '>=' ) ) ) ) )
+            {
+                $min = $patch['to'];
+            }
+        }
+
+        return $min;
+    }
+
+    /**
+     * Get last version
+     *
+     * @param   array   $info
+     * @param   string  $fromVersion
+     * @param   string  $toVersion
+     * @return  string
+     */
+    private function getLastVersion( $info, $fromVersion, $toVersion )
+    {
+        $max = null;
+
+        foreach ( $info as $patch )
+        {
+            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
+                // ( no max || ( current is greater than max                && current is under the lower bound                ) )
+                   ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && version_compare( $patch['to'], $toVersion, '<=' ) ) ) )
+            {
+                $max = $patch['to'];
+            }
+        }
+
+        return $max;
     }
 
 }

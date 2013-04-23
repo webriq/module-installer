@@ -89,15 +89,16 @@ class PatchData
     /**
      * Get a patch-data
      *
-     * @param   string  $section
-     * @param   string  $key
-     * @param   string  $ask
-     * @param   string  $default
-     * @param   bool    $throwIfEmpty
+     * @param   string          $section
+     * @param   string          $key
+     * @param   string          $ask
+     * @param   string          $default
+     * @param   string|callable $validator
+     * @param   bool            $throwIfEmpty
      * @return  string
      * @throws  Exception\DomainException
      */
-    public function get( $section, $key, $ask = null, $default = null, $throwIfEmpty = true )
+    public function get( $section, $key, $ask = null, $default = null, $validator = null, $throwIfEmpty = true )
     {
         if ( ! empty( $this->data[$section][$key] ) )
         {
@@ -117,7 +118,24 @@ class PatchData
                 $question .= ' (default: <info>' . $default . '</info>)';
             }
 
-            $result = $this->io->ask( '      ' . $question . ': ', $default );
+            $ask = '      ' . $question . ': ';
+
+            if ( is_string( $validator ) && ! function_exists( $validator ) )
+            {
+                $pattern   = (string) $validator;
+                $validator = function ( $value ) use ( $pattern ) {
+                    return (bool) preg_match( $pattern, $value );
+                };
+            }
+
+            if ( is_callable( $validator ) )
+            {
+                $result = $this->io->askAndValidate( $ask, $validator, 3, $default );
+            }
+            else
+            {
+                $result = $this->io->ask( $ask, $default );
+            }
         }
 
         if ( empty( $result ) )

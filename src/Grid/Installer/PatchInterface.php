@@ -2,6 +2,8 @@
 
 namespace Grid\Installer;
 
+use PDO;
+
 /**
  * PatchInterface
  *
@@ -14,8 +16,9 @@ interface PatchInterface
      * Constructor
      *
      * @param   \Grid\Installer\PatchData   $patchData
+     * @param   PDO                         $db
      */
-    public function __construct( PatchData $patchData );
+    public function __construct( PatchData $patchData, PDO $db );
 
     /**
      * Run before patching

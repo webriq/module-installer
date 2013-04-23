@@ -2,6 +2,8 @@
 
 namespace Grid\Installer;
 
+use PDO;
+
 /**
  * AbstractPatch
  *
@@ -18,6 +20,13 @@ abstract class AbstractPatch implements PatchInterface
     protected $pathcData;
 
     /**
+     * Db
+     *
+     * @var PDO
+     */
+    protected $db;
+
+    /**
      * Get patch data
      *
      * @return  \Grid\Installer\PatchData
@@ -28,13 +37,24 @@ abstract class AbstractPatch implements PatchInterface
     }
 
     /**
+     * Get db
+     *
+     * @return  PDO
+     */
+    public function getDb()
+    {
+        return $this->db;
+    }
+
+    /**
      * Constructor
      *
      * @param   \Grid\Installer\PatchData   $patchData
      */
-    public function __construct( PatchData $patchData )
+    public function __construct( PatchData $patchData, PDO $db )
     {
         $this->patchData = $patchData;
+        $this->db        = $db;
     }
 
     /**

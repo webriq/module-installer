@@ -117,7 +117,7 @@ class PatchData
                 $question .= ' (default: <info>' . $default . '</info>)';
             }
 
-            $result = $this->io->ask( '      ' . $question . ':', $default );
+            $result = $this->io->ask( '      ' . $question . ': ', $default );
         }
 
         if ( empty( $result ) )

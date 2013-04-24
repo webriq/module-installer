@@ -292,9 +292,10 @@ class Patcher
      *
      * @param   string|array|\Traversable   $paths
      * @param   string|null                 $toVersion
+     * @param   bool                        $useTransaction
      * @return  void
      */
-    public function patch( $paths, $toVersion = null )
+    public function patch( $paths, $toVersion = null, $useTransaction = true )
     {
         if ( ! $paths instanceof Traversable && ! is_array( $paths ) )
         {
@@ -328,7 +329,10 @@ class Patcher
 
         try
         {
-            $db->beginTransaction();
+            if ( $useTransaction )
+            {
+                $db->beginTransaction();
+            }
 
             foreach ( $paths as $path )
             {
@@ -351,11 +355,18 @@ class Patcher
                 }
             }
 
-            $db->commit();
+            if ( $useTransaction )
+            {
+                $db->commit();
+            }
         }
         catch ( Exception $exception )
         {
-            $db->rollBack();
+            if ( $useTransaction )
+            {
+                $db->rollBack();
+            }
+
             throw $exception;
         }
     }

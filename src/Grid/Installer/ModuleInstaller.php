@@ -2,6 +2,7 @@
 
 namespace Grid\Installer;
 
+use Exception;
 use PDOException;
 use FilesystemIterator;
 use CallbackFilterIterator;
@@ -364,27 +365,40 @@ class ModuleInstaller extends LibraryInstaller
 
         if ( isset( $extra['patch-classes'] ) )
         {
+            $db       = $this->patcher->getDb();
             $basePath = rtrim( $this->getInstallPath( $package ), '/' );
 
-            foreach ( (array) $extra['patch-classes'] as $class => $path )
+            try
             {
-                if ( $path )
+                $db->beginTransaction();
+
+                foreach ( (array) $extra['patch-classes'] as $class => $path )
                 {
-                    require_once $basePath . '/' . ltrim( $path, '/' );
+                    if ( $path )
+                    {
+                        require_once $basePath . '/' . ltrim( $path, '/' );
+                    }
+
+                    if ( ! class_exists( $class ) )
+                    {
+                        throw new Exception\RuntimeException( sprintf(
+                            '%s: class "%s" not found at "%s"',
+                            __METHOD__,
+                            $class,
+                            $path
+                        ) );
+                    }
+
+                    $patch = new $class( $this->patchData, $db );
+                    $patch->$method( $from, $to );
                 }
 
-                if ( ! class_exists( $class ) )
-                {
-                    throw new Exception\RuntimeException( sprintf(
-                        '%s: class "%s" not found at "%s"',
-                        __METHOD__,
-                        $class,
-                        $path
-                    ) );
-                }
-
-                $patch = new $class( $this->patchData, $this->patcher->getDb() );
-                $patch->$method( $from, $to );
+                $db->commit();
+            }
+            catch ( Exception $exception )
+            {
+                $db->rollBack();
+                throw $exception;
             }
         }
     }

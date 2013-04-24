@@ -153,7 +153,7 @@ class ModuleInstaller extends LibraryInstaller
         $host   = $this->patchData->get( 'db', 'host', 'Type your PostgreSQL database\'s host', 'localhost' );
         $port   = (int) $this->patchData->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
         $user   = $this->patchData->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
-        $passwd = $this->patchData->get( 'db', 'password', 'Type your PostgreSQL database\'s password' );
+        $passwd = $this->patchData->get( 'db', 'password', 'Type your PostgreSQL database\'s password', null, true );
         $dbname = $this->patchData->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
         $schema = $this->patchData->get( 'db', 'schema', 'Type your PostgreSQL database\'s schema name', 'site' );
 
@@ -205,7 +205,7 @@ class ModuleInstaller extends LibraryInstaller
                 sprintf(
                     '%s%s%sreturn %s;%s',
                     '<',
-                    '?php'
+                    '?php',
                     PHP_EOL,
                     var_export(
                         array(

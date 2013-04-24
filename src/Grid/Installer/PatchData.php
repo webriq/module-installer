@@ -120,7 +120,14 @@ class PatchData
                 $question .= ' (default: <info>' . $default . '</info>)';
             }
 
-            $ask = '      ' . $question . ': ';
+            $ask    = '      ' . $question . ': ';
+            $hidden = false;
+
+            if ( true === $validator )
+            {
+                $hidden     = true;
+                $validator  = null;
+            }
 
             if ( is_string( $validator ) && ! function_exists( $validator ) )
             {
@@ -145,6 +152,10 @@ class PatchData
             if ( is_callable( $validator ) )
             {
                 $result = $this->io->askAndValidate( $ask, $validator, $attempts, $default );
+            }
+            else if ( $hidden )
+            {
+                $result = $this->io->askAndHideAnswer( $ask ) ?: $default;
             }
             else
             {

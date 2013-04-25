@@ -260,6 +260,17 @@ class ModuleInstaller extends LibraryInstaller
                             PackageInterface $initial,
                             PackageInterface $target )
     {
+        echo '$repo->getPackages()';
+        var_dump($repo->getPackages());
+        echo PHP_EOL;
+
+        echo '$this->composer->getRepositoryManager()->getLocalRepository()->getPackages()';
+        var_dump($this->composer->getRepositoryManager()->getLocalRepository()->getPackages());
+        echo PHP_EOL;
+
+        var_dump($repo === $this->composer->getRepositoryManager()->getLocalRepository());
+        echo PHP_EOL;
+
         $this->beforePatches( $initial, $initial->getVersion(), $target->getVersion() );
 
         if ( $repo->hasPackage( $initial ) )

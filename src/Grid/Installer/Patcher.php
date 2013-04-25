@@ -3,8 +3,8 @@
 namespace Grid\Installer;
 
 use PDO;
-use Exception;
 use Traversable;
+use PDOException;
 use IteratorAggregate;
 use FilesystemIterator;
 use CallbackFilterIterator;
@@ -264,7 +264,7 @@ class Patcher
      * Constructor
      *
      * @param   null|array|PDO  $db
-     * @throws  InvalidArgumentException
+     * @throws  Exception\InvalidArgumentException
      */
     public function __construct( $db = null )
     {
@@ -278,7 +278,7 @@ class Patcher
         }
         else if ( ! empty( $db ) )
         {
-            throw new InvalidArgumentException( sprintf(
+            throw new Exception\InvalidArgumentException( sprintf(
                 '%s: $db must be a PDO instance,' .
                 ' or a db-config array, "%s" given.',
                 __METHOD__,
@@ -361,7 +361,7 @@ class Patcher
                 $db->commit();
             }
         }
-        catch ( Exception $exception )
+        catch ( \Exception $exception )
         {
             if ( $useTransaction )
             {
@@ -682,7 +682,23 @@ class Patcher
         {
             if ( $patch['from'] == $fromVersion && $patch['to'] == $toVersion )
             {
-                $db->exec( file_get_contents( $patch['path'] ) );
+                try
+                {
+                    $db->exec( file_get_contents( $patch['path'] ) );
+                }
+                catch ( \PDOException $exception )
+                {
+                    throw new Exception\RuntimeException(
+                        sprintf(
+                            'PDOException: "%s"%s occured in patch: "%s"',
+                            $exception->getMessage(),
+                            PHP_EOL,
+                            $patch['path']
+                        ),
+                        0,
+                        $exception
+                    );
+                }
             }
         }
     }

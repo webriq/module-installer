@@ -778,7 +778,7 @@ class ModuleInstaller extends LibraryInstaller
             ) );
 
             $this->io->write(
-                '        for schema(s):' . (
+                '        for schema(s): ' . (
                     null === $onlySchemas
                         ? 'all'
                         : '<info>' . implode( '</info>, <info>', $onlySchemas ) . '</info>'

@@ -426,10 +426,10 @@ class ModuleInstaller extends LibraryInstaller
             $db       = $this->getPatcher()->getDb();
             $basePath = rtrim( $this->getInstallPath( $package ), '/' );
 
+            $db->beginTransaction();
+
             try
             {
-                $db->beginTransaction();
-
                 foreach ( (array) $extra['patch-classes'] as $class => $path )
                 {
                     if ( $path )

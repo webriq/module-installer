@@ -325,11 +325,10 @@ class Patcher
         }
 
         $db = $this->getDb();
+        $db->beginTransaction();
 
         try
         {
-            $db->beginTransaction();
-
             foreach ( $paths as $path )
             {
                 $iterator = new CallbackFilterIterator(

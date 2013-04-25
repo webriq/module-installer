@@ -447,7 +447,7 @@ class ModuleInstaller extends LibraryInstaller
                         ) );
                     }
 
-                    $patch = new $class( $this->patchData, $db );
+                    $patch = new $class( $this );
                     $patch->$method( $from, $to );
                 }
 

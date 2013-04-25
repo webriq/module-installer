@@ -2,7 +2,6 @@
 
 namespace Grid\Installer;
 
-use PDO;
 use Traversable;
 use PDOException;
 use IteratorAggregate;
@@ -28,7 +27,7 @@ class Patcher
     protected $config;
 
     /**
-     * @var PDO
+     * @var \PDO
      */
     private $db;
 
@@ -194,7 +193,7 @@ class Patcher
     /**
      * Get the db object
      *
-     * @return PDO
+     * @return  \PDO
      */
     public function getDb()
     {
@@ -246,10 +245,10 @@ class Patcher
     /**
      * Set the db-adapter object
      *
-     * @param   PDO     $db
+     * @param   \PDO    $db
      * @return  Patcher
      */
-    public function setDb( PDO $db = null )
+    public function setDb( \PDO $db = null )
     {
         $this->db = $db;
         $this->config = array();
@@ -267,7 +266,7 @@ class Patcher
      */
     public function __construct( $db = null )
     {
-        if ( $db instanceof PDO )
+        if ( $db instanceof \PDO )
         {
             $this->setDb( $db );
         }

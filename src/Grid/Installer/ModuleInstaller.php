@@ -233,11 +233,6 @@ class ModuleInstaller extends LibraryInstaller
     public function install( InstalledRepositoryInterface $repo,
                              PackageInterface $package )
     {
-        static $i = 0;
-        ob_start();
-        var_dump($repo->getPackages());
-        file_put_contents('./data/' . ($i++) . '.' . str_replace('/', '.', $package->getName()), ob_get_clean());
-
         parent::install( $repo, $package );
 
         $this->beforePatches( $package, 0, $package->getVersion() );

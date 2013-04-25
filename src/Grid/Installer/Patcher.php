@@ -8,7 +8,6 @@ use PDOException;
 use IteratorAggregate;
 use FilesystemIterator;
 use CallbackFilterIterator;
-use InvalidArgumentException;
 
 /**
  * Patch
@@ -293,10 +292,9 @@ class Patcher
      * @param   string|array|\Traversable   $paths
      * @param   string|null                 $toVersion
      * @param   array|null                  $onlySchemas
-     * @param   bool                        $useTransaction
      * @return  void
      */
-    public function patch( $paths, $toVersion = null, $onlySchemas = null, $useTransaction = true )
+    public function patch( $paths, $toVersion = null, $onlySchemas = null )
     {
         if ( ! $paths instanceof Traversable && ! is_array( $paths ) )
         {
@@ -330,10 +328,7 @@ class Patcher
 
         try
         {
-            if ( $useTransaction )
-            {
-                $db->beginTransaction();
-            }
+            $db->beginTransaction();
 
             foreach ( $paths as $path )
             {
@@ -356,18 +351,11 @@ class Patcher
                 }
             }
 
-            if ( $useTransaction )
-            {
-                $db->commit();
-            }
+            $db->commit();
         }
         catch ( \Exception $exception )
         {
-            if ( $useTransaction )
-            {
-                $db->rollBack();
-            }
-
+            $db->rollBack();
             throw $exception;
         }
     }
@@ -686,7 +674,7 @@ class Patcher
                 {
                     $db->exec( file_get_contents( $patch['path'] ) );
                 }
-                catch ( \PDOException $exception )
+                catch ( PDOException $exception )
                 {
                     throw new Exception\RuntimeException(
                         sprintf(

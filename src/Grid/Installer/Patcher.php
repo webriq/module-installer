@@ -292,10 +292,11 @@ class Patcher
      *
      * @param   string|array|\Traversable   $paths
      * @param   string|null                 $toVersion
+     * @param   array|null                  $onlySchemas
      * @param   bool                        $useTransaction
      * @return  void
      */
-    public function patch( $paths, $toVersion = null, $useTransaction = true )
+    public function patch( $paths, $toVersion = null, $onlySchemas = null, $useTransaction = true )
     {
         if ( ! $paths instanceof Traversable && ! is_array( $paths ) )
         {
@@ -351,7 +352,7 @@ class Patcher
 
                 foreach ( $iterator as $section => $pathname )
                 {
-                    $this->patchSection( $pathname, $section, $toVersion );
+                    $this->patchSection( $pathname, $section, $toVersion, $onlySchemas );
                 }
             }
 
@@ -377,32 +378,29 @@ class Patcher
      * @param   string      $path
      * @param   string      $section
      * @param   string|null $toVersion
+     * @param   array|null  $onlySchemas
      * @return  void
      */
-    protected function patchSection( $path, $section, $toVersion = null )
+    protected function patchSection( $path, $section, $toVersion = null, $onlySchemas = null )
     {
-        if ( is_dir( $path . '/common' ) )
+        if ( is_dir( $dir = $path . '/common' ) && ( null === $onlySchemas || in_array( '_common', $onlySchemas ) ) )
         {
-            $this->patchSchema( $path . '/common', $section, '_common', $toVersion );
+            $this->patchSchema( $dir, $section, '_common', $toVersion );
         }
 
-        if ( is_dir( $path . '/central' ) )
+        if ( is_dir( $dir = $path . '/central' ) && ( null === $onlySchemas || in_array( '_central', $onlySchemas ) ) )
         {
-            $this->patchSchema( $path . '/central', $section, '_central', $toVersion );
+            $this->patchSchema( $dir, $section, '_central', $toVersion );
         }
 
-        if ( is_dir( $path . '/site' ) )
+        if ( is_dir( $dir = $path . '/site' ) )
         {
-            if ( $this->isMultisite() )
+            foreach ( $this->getSchemas() as $schema )
             {
-                foreach ( $this->getSiteSchemas() as $schema )
+                if ( null === $onlySchemas || in_array( $schema, $onlySchemas ) )
                 {
-                    $this->patchSchema( $path . '/site', $section, $schema, $toVersion );
+                    $this->patchSchema( $dir, $section, $schema, $toVersion );
                 }
-            }
-            else
-            {
-                $this->patchSchema( $path . '/site', $section, null, $toVersion );
             }
         }
     }
@@ -412,7 +410,7 @@ class Patcher
      *
      * @return  bool
      */
-    protected function isMultisite()
+    public function isMultisite()
     {
         if ( null === $this->isMultisite )
         {
@@ -439,11 +437,23 @@ class Patcher
     }
 
     /**
-     * Get site schemas
+     * Set multisite flag
      *
-     * @return  array|null
+     * @param   bool    $flag
+     * @return  Patcher
      */
-    protected function getSiteSchemas()
+    public function setMultisite( $flag = true )
+    {
+        $this->isMultisite = $flag === null ? null : (bool) $flag;
+        return $this;
+    }
+
+    /**
+     * Get schemas
+     *
+     * @return  array
+     */
+    protected function getSchemas()
     {
         if ( $this->isMultisite() )
         {
@@ -453,7 +463,7 @@ class Patcher
                 $query  = $db->query( 'SELECT "schema" FROM "_central"."site"' );
 
                 $query->execute();
-                $this->schemaCache = array();
+                $this->schemaCache = array( '_template' );
 
                 while ( $row = $query->fetchObject() )
                 {
@@ -465,7 +475,7 @@ class Patcher
             return $this->schemaCache;
         }
 
-        return null;
+        return array( null );
     }
 
     /**

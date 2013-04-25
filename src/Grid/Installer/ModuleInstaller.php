@@ -92,6 +92,43 @@ class ModuleInstaller extends LibraryInstaller
     protected $patcher;
 
     /**
+     * Repository
+     *
+     * @var \Composer\Repository\RepositoryInterface
+     */
+    protected $repository;
+
+    /**
+     * Get custom patch-data
+     *
+     * @return  PatchData
+     */
+    public function getPatchData()
+    {
+        return $this->patchData;
+    }
+
+    /**
+     * Get patcher
+     *
+     * @return  Patcher
+     */
+    public function getPatcher()
+    {
+        return $this->patcher;
+    }
+
+    /**
+     * Repository
+     *
+     * @return  \Composer\Repository\RepositoryInterface
+     */
+    public function getRepository()
+    {
+        return $this->repository;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function __construct( IOInterface $io,
@@ -100,6 +137,9 @@ class ModuleInstaller extends LibraryInstaller
     {
         parent::__construct( $io, $composer, $type );
         $extra = $composer->getPackage()->getExtra();
+
+        $this->repository = $composer->getRepositoryManager()
+                                     ->getLocalRepository();
 
         if ( isset( $extra['public-dir'] ) )
         {
@@ -117,12 +157,14 @@ class ModuleInstaller extends LibraryInstaller
 
         if ( is_file( $dbConfigFile ) && is_readable( $dbConfigFile ) )
         {
-            $this->patchData->addData( include $dbConfigFile );
+            $this->getPatchData()
+                 ->addData( include $dbConfigFile );
         }
 
         if ( isset( $extra['patch-data'] ) )
         {
-            $this->patchData->addData( $extra['patch-data'] );
+            $this->getPatchData()
+                 ->addData( $extra['patch-data'] );
         }
 
         if ( ! is_dir( $this->publicDir ) )
@@ -150,12 +192,18 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
-        $host   = $this->patchData->get( 'db', 'host', 'Type your PostgreSQL database\'s host', 'localhost' );
-        $port   = (int) $this->patchData->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
-        $user   = $this->patchData->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
-        $passwd = $this->patchData->get( 'db', 'password', 'Type your PostgreSQL database\'s password', null, true );
-        $dbname = $this->patchData->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
-        $schema = $this->patchData->get( 'db', 'schema', 'Type your PostgreSQL database\'s schema name', 'site' );
+        $host   = $this->getPatchData()
+                       ->get( 'db', 'host', 'Type your PostgreSQL database\'s host', 'localhost' );
+        $port   = (int) $this->getPatchData()
+                             ->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
+        $user   = $this->getPatchData()
+                       ->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
+        $passwd = $this->getPatchData()
+                       ->get( 'db', 'password', 'Type your PostgreSQL database\'s password', null, true );
+        $dbname = $this->getPatchData()
+                       ->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
+        $schema = $this->getPatchData()
+                       ->get( 'db', 'schema', 'Type your PostgreSQL database\'s schema name', 'site' );
 
         if ( ! is_array( $schema ) )
         {
@@ -176,7 +224,7 @@ class ModuleInstaller extends LibraryInstaller
         try
         {
             $this->patcher  = new Patcher( $dbConfigData );
-            $db             = $this->patcher->getDb();
+            $db             = $this->getPatcher()->getDb();
         }
         catch ( PDOException $ex )
         {
@@ -233,6 +281,7 @@ class ModuleInstaller extends LibraryInstaller
     public function install( InstalledRepositoryInterface $repo,
                              PackageInterface $package )
     {
+        $this->repository = $repo;
         parent::install( $repo, $package );
 
         $this->beforePatches( $package, 0, $package->getVersion() );
@@ -260,6 +309,7 @@ class ModuleInstaller extends LibraryInstaller
                             PackageInterface $initial,
                             PackageInterface $target )
     {
+        $this->repository = $repo;
         $this->beforePatches( $initial, $initial->getVersion(), $target->getVersion() );
 
         if ( $repo->hasPackage( $initial ) )
@@ -302,6 +352,7 @@ class ModuleInstaller extends LibraryInstaller
     public function uninstall( InstalledRepositoryInterface $repo,
                                PackageInterface $package )
     {
+        $this->repository = $repo;
         $this->beforePatches( $package, $package->getVersion(), 0 );
 
         if ( $repo->hasPackage( $package ) )
@@ -328,9 +379,9 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * Run before patches
      *
-     * @param   \Composer\Package\PackageInterface  $package
-     * @param   type                                $from
-     * @param   type                                $to
+     * @param   PackageInterface    $package
+     * @param   string              $from
+     * @param   string              $to
      * @return  void
      * @throws  Exception\RuntimeException
      */
@@ -342,9 +393,9 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * Run after patches
      *
-     * @param   \Composer\Package\PackageInterface  $package
-     * @param   type                                $from
-     * @param   type                                $to
+     * @param   PackageInterface    $package
+     * @param   string              $from
+     * @param   string              $to
      * @return  void
      * @throws  Exception\RuntimeException
      */
@@ -360,10 +411,10 @@ class ModuleInstaller extends LibraryInstaller
      * - beforePatch
      * - afterPatch
      *
-     * @param   \Composer\Package\PackageInterface $package
-     * @param   string  $from
-     * @param   string  $to
-     * @param   string  $method
+     * @param   PackageInterface    $package
+     * @param   string              $from
+     * @param   string              $to
+     * @param   string              $method
      * @throws  Exception\RuntimeException
      */
     private function runPatchMethod( PackageInterface $package, $from, $to, $method )
@@ -372,7 +423,7 @@ class ModuleInstaller extends LibraryInstaller
 
         if ( isset( $extra['patch-classes'] ) )
         {
-            $db       = $this->patcher->getDb();
+            $db       = $this->getPatcher()->getDb();
             $basePath = rtrim( $this->getInstallPath( $package ), '/' );
 
             try
@@ -416,7 +467,7 @@ class ModuleInstaller extends LibraryInstaller
      * @param   PackageInterface $package
      * @return  array|\Traversable
      */
-    protected function getModulesPaths( PackageInterface $package )
+    public function getModulesPaths( PackageInterface $package )
     {
         $path = $this->getInstallPath( $package );
 
@@ -706,12 +757,13 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * Run patch
      *
-     * @param   string                              $path
-     * @param   \Composer\Package\PackageInterface  $package
-     * @param   string                              $toVersion
+     * @param   string              $path
+     * @param   PackageInterface    $package
+     * @param   string              $toVersion
+     * @param   array|null          $onlySchemas
      * @return  void
      */
-    protected function patch( $path, PackageInterface $package, $toVersion = null )
+    public function patch( $path, PackageInterface $package, $toVersion = null, $onlySchemas = null )
     {
         $extra  = $package->getExtra();
         $patch  = isset( $extra['patch-dir'] )
@@ -725,7 +777,46 @@ class ModuleInstaller extends LibraryInstaller
                 $this->getRelativePath( $dir )
             ) );
 
-            $this->patcher->patch( array( $dir ), $toVersion );
+            $this->io->write(
+                '        for schema(s):' . (
+                    null === $onlySchemas
+                        ? 'all'
+                        : '<info>' . implode( '</info>, <info>', $onlySchemas ) . '</info>'
+                )
+            );
+
+            $this->getPatcher()
+                 ->patch( array( $dir ), $toVersion, $onlySchemas );
+        }
+    }
+
+    /**
+     * Convert platform to multisite
+     *
+     * @return  void
+     */
+    public function convertToMultisite()
+    {
+        $patcher = $this->getPatcher();
+
+        if ( $patcher->isMultisite() )
+        {
+            return;
+        }
+
+        $patcher->setMultisite( true );
+
+        foreach ( $this->getRepository()->getPackages() as $package )
+        {
+            if ( ! $this->supports( $package->getType() ) )
+            {
+                continue;
+            }
+
+            foreach ( $this->getModulesPaths( $package ) as $path )
+            {
+                $this->patch( $path, $package, $package->getVersion(), array( '_template' ) );
+            }
         }
     }
 

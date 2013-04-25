@@ -2,7 +2,6 @@
 
 namespace Grid\Installer;
 
-use Exception;
 use PDOException;
 use FilesystemIterator;
 use CallbackFilterIterator;
@@ -453,7 +452,7 @@ class ModuleInstaller extends LibraryInstaller
 
                 $db->commit();
             }
-            catch ( Exception $exception )
+            catch ( \Exception $exception )
             {
                 $db->rollBack();
                 throw $exception;

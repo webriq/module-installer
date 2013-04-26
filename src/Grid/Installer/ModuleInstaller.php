@@ -128,6 +128,18 @@ class ModuleInstaller extends LibraryInstaller
     }
 
     /**
+     * Get extra data from root package
+     *
+     * @return  array
+     */
+    public function getExtra()
+    {
+        return $this->composer
+                    ->getPackage()
+                    ->getExtra();
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function __construct( IOInterface $io,

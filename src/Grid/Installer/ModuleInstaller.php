@@ -55,7 +55,6 @@ class ModuleInstaller extends LibraryInstaller
     protected static $defaultConfigFiles = array(
         'application'   => 'application.php',
         'db'            => 'db.local.php',
-        'multisite'     => 'multisite.local.php',
     );
 
     /**

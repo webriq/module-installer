@@ -45,7 +45,18 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * @const string
      */
-    const DEFAULT_DB_CONFIG = 'config/autoload/db.local.php';
+    const DEFAULT_CONFIG_PATH = 'config/autoload';
+
+    /**
+     * Default config files
+     *
+     * @var array
+     */
+    protected static $defaultConfigFiles = array(
+        'application'   => 'application.php',
+        'db'            => 'db.local.php',
+        'multisite'     => 'multisite.local.php',
+    );
 
     /**
      * Supported types
@@ -98,6 +109,27 @@ class ModuleInstaller extends LibraryInstaller
     protected $repository;
 
     /**
+     * Config path
+     *
+     * @var string
+     */
+    protected $configPath;
+
+    /**
+     * Config data
+     *
+     * @var array
+     */
+    protected $configData = array();
+
+    /**
+     * Config files
+     *
+     * @var string
+     */
+    protected $configFiles = array();
+
+    /**
      * Get custom patch-data
      *
      * @return  PatchData
@@ -140,6 +172,124 @@ class ModuleInstaller extends LibraryInstaller
     }
 
     /**
+     * Get config file
+     *
+     * @param   string  $config
+     * @return  string
+     */
+    protected function getConfigFile( $config )
+    {
+        $extra = $this->getExtra();
+
+        if ( null === $this->configPath )
+        {
+            $this->configPath = isset( $extra['config-path'] )
+                    ? trim( $extra['config-path'], '/' )
+                    : static::DEFAULT_CONFIG_PATH;
+        }
+
+        if ( empty( $this->configFiles[$config] ) )
+        {
+            $this->configFiles[$config] = $config . '.php';
+
+            if ( isset( $extra['config-files'][$config] ) )
+            {
+                $this->configFiles[$config] = $extra['config-files'][$config];
+            }
+            else if ( isset( static::$defaultConfigFiles[$config] ) )
+            {
+                $this->configFiles[$config] = static::$defaultConfigFiles[$config];
+            }
+        }
+
+        return $this->configPath . '/' . $this->configFiles[$config];
+    }
+
+    /**
+     * Get config data
+     *
+     * @return  array
+     */
+    public function getConfigData( $config )
+    {
+        if ( ! isset( $this->configData[$config] ) )
+        {
+            $this->configData[$config] = array();
+            $file = $this->getConfigFile( $config );
+
+            if ( is_file( $file ) )
+            {
+                $this->configData[$config] = (array) include $file;
+            }
+        }
+
+        return $this->configData[$config];
+    }
+
+    /**
+     * Set config data (& write to file)
+     *
+     * @param   array   $data
+     * @return  ModuleInstaller
+     */
+    public function setConfigData( $config, array $data )
+    {
+        file_put_contents(
+            $this->getConfigFile( $config ),
+            sprintf(
+                '%s%s%sreturn %s;%s',
+                '<',
+                '?php',
+                PHP_EOL,
+                var_export( $this->configData[$config] = $data, true ),
+                PHP_EOL
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * Merge config data (& write to file)
+     *
+     * @param   array   $data
+     * @return  ModuleInstaller
+     */
+    public function mergeConfigData( $config, array $data )
+    {
+        $merge = $this->getConfigData( $config );
+        self::merge( $merge, $data );
+        return $this->setConfigData( $config, $merge );
+    }
+
+    /**
+     * Merge arrays
+     *
+     * @param   array   $array
+     * @param   array   $with
+     */
+    private static function merge( array & $array, array & $with )
+    {
+        foreach ( $with as $key => & $value )
+        {
+            if ( is_numeric( $key ) )
+            {
+                $array[] = $value;
+            }
+            else if ( ! isset( $array[$key] ) ||
+                      ! is_array( $value ) ||
+                      ! is_array( $array[$key] ) )
+            {
+                $array[$key] = $value;
+            }
+            else
+            {
+                self::merge( $array[$key], $value );
+            }
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function __construct( IOInterface $io,
@@ -159,18 +309,8 @@ class ModuleInstaller extends LibraryInstaller
 
         $this->patchData = new PatchData( $io );
 
-        $dbConfigFile = static::DEFAULT_DB_CONFIG;
-
-        if ( isset( $extra['db-config'] ) )
-        {
-            $dbConfigFile = ltrim( $extra['db-config'], '/' );
-        }
-
-        if ( is_file( $dbConfigFile ) && is_readable( $dbConfigFile ) )
-        {
-            $this->getPatchData()
-                 ->addData( include $dbConfigFile );
-        }
+        $this->getPatchData()
+             ->addData( $this->getConfigData( 'db' ) );
 
         if ( isset( $extra['patch-data'] ) )
         {
@@ -232,6 +372,8 @@ class ModuleInstaller extends LibraryInstaller
             'schema'    => $schema,
         );
 
+        $previous = null;
+
         try
         {
             $this->patcher  = new Patcher( $dbConfigData );
@@ -257,24 +399,14 @@ class ModuleInstaller extends LibraryInstaller
             );
         }
 
-        if ( ! is_file( $dbConfigFile ) )
+        if ( ! is_file( $this->getConfigFile( 'application' ) ) )
         {
-            @file_put_contents(
-                $dbConfigFile,
-                sprintf(
-                    '%s%s%sreturn %s;%s',
-                    '<',
-                    '?php',
-                    PHP_EOL,
-                    var_export(
-                        array(
-                            'db' => $dbConfigData,
-                        ),
-                        true
-                    ),
-                    PHP_EOL
-                )
-            );
+            $this->setConfigData( 'application', array() );
+        }
+
+        if ( ! is_file( $this->getConfigFile( 'db' ) ) )
+        {
+            $this->setConfigData( 'db', array( 'db' => $dbConfigData ) );
         }
     }
 

@@ -325,6 +325,7 @@ class Patcher
 
         $db = $this->getDb();
         $db->beginTransaction();
+        $this->isMultisite();
 
         try
         {

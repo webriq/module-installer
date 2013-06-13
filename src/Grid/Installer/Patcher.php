@@ -382,11 +382,30 @@ class Patcher
 
         if ( is_dir( $dir = $path . '/site' ) )
         {
+            $patchedSchemas = array();
+
             foreach ( $this->getSchemas() as $schema )
             {
                 if ( null === $onlySchemas || in_array( $schema, $onlySchemas ) )
                 {
                     $this->patchSchema( $dir, $section, $schema, $toVersion );
+                    $patchedSchemas[] = $schema;
+                }
+            }
+
+            if ( ! empty( $onlySchemas ) )
+            {
+                foreach ( $onlySchemas as $schema )
+                {
+                    if ( ! in_array( $schema, $patchedSchemas ) )
+                    {
+                        $this->patchSchema( $dir, $section, $schema, $toVersion );
+
+                        if ( null !== $this->schemaCache )
+                        {
+                            $this->schemaCache[$schema] = $schema;
+                        }
+                    }
                 }
             }
         }

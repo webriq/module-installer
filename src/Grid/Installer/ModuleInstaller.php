@@ -87,6 +87,26 @@ class ModuleInstaller extends LibraryInstaller
     protected $publicDir = self::DEFAULT_PUBLIC_DIR;
 
     /**
+     * Chmod mode
+     *
+     * @var int
+     */
+    protected $chmodMode = 0777;
+
+    /**
+     * Chmod entries
+     *
+     * @var array
+     */
+    protected $chmodEntries = array(
+        'public/thumbnails',
+        'public/uploads',
+        'public/tmp',
+        'data',
+        'log',
+    );
+
+    /**
      * Custom patch-data
      *
      * @var \Grid\Installer\PatchData
@@ -301,6 +321,19 @@ class ModuleInstaller extends LibraryInstaller
         $this->repository = $composer->getRepositoryManager()
                                      ->getLocalRepository();
 
+        if ( isset( $extra['chmod-entries'] ) )
+        {
+            $this->chmodEntries = array_merge(
+                $this->chmodEntries,
+                (array) $extra['chmod-entries']
+            );
+        }
+
+        if ( isset( $extra['chmod-mode'] ) )
+        {
+            $this->chmodMode = (int) $extra['chmod-mode'];
+        }
+
         if ( isset( $extra['public-dir'] ) )
         {
             $this->publicDir = rtrim( $extra['public-dir'], '/' );
@@ -326,11 +359,16 @@ class ModuleInstaller extends LibraryInstaller
             ) );
         }
 
+        foreach ( $this->chmodEntries as $dir )
+        {
+            chmod( $dir, $this->chmodMode );
+        }
+
         foreach ( static::$subDirs as $subDir )
         {
             $dir = $this->publicDir . '/' . $subDir;
 
-            if ( ! is_dir( $dir ) || !is_writable( $dir ) )
+            if ( ! is_dir( $dir ) || ! is_writable( $dir ) )
             {
                 throw new Exception\RuntimeException( sprintf(
                     '%s: Directory "%s" under public directory "%s"' .

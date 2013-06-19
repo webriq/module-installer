@@ -102,6 +102,7 @@ class ModuleInstaller extends LibraryInstaller
         'public/thumbnails',
         'public/uploads',
         'public/tmp',
+        'public/tmp/captcha',
         'data',
         'log',
     );

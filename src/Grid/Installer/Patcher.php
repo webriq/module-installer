@@ -50,7 +50,7 @@ class Patcher
      *
      * @var array
      */
-    private $schemaCache = array();
+    private $schemaCache = null;
 
     /**
      * Versions' cache
@@ -86,7 +86,7 @@ class Patcher
         $this->config = $config;
         $this->db = null;
         $this->isMultisite = null;
-        $this->schemaCache = array();
+        $this->schemaCache = null;
         $this->versionCache = array();
         return $this;
     }
@@ -253,7 +253,7 @@ class Patcher
         $this->db = $db;
         $this->config = array();
         $this->isMultisite = null;
-        $this->schemaCache = array();
+        $this->schemaCache = null;
         $this->versionCache = array();
         return $this;
     }

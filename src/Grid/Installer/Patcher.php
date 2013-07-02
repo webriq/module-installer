@@ -118,21 +118,27 @@ class Patcher
             $schemas = iterator_to_array( $schemas );
         }
 
+        /** @var $result \PDOStatement */
+        $result = $db->query( 'SELECT UNNEST( CURRENT_SCHEMAS( FALSE ) )' );
+        $current = $result->fetchAll( PDO::FETCH_COLUMN );
+        $oldSchema = reset( $current );
+
         if ( ! is_array( $schemas ) )
         {
             $schemas = (string) $schemas;
-            /** @var $result \PDOStatement */
-            $result = $db->query( 'SELECT UNNEST( CURRENT_SCHEMAS( FALSE ) )' );
-            $current = $result->fetchAll( PDO::FETCH_COLUMN );
 
-            if ( reset( $current ) == $schemas )
+            if ( $oldSchema == $schemas )
             {
-                return;
+                return $schemas;
             }
 
-            $oldSchema = array_shift( $current );
+            array_shift( $current );
             array_unshift( $current, $schemas );
             $schemas = $current;
+        }
+        else if ( $schemas == $current )
+        {
+            return $oldSchema;
         }
 
         foreach ( $schemas as $schema )

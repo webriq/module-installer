@@ -469,7 +469,7 @@ class Patcher
                 $query  = $db->query( 'SELECT "schema" FROM "_central"."site"' );
 
                 $query->execute();
-                $this->schemaCache = array( '_template' );
+                $this->schemaCache = array( '_template' => '_template' );
 
                 while ( $row = $query->fetchObject() )
                 {

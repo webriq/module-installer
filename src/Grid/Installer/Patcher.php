@@ -512,9 +512,10 @@ class Patcher
         {
             $direction = 1;
         }
-        else if ( ! $toVersion )
+        else if ( ! $toVersion || 0 === version_compare( $toVersion, '0' ) )
         {
             $direction = -1;
+            $toVersion = '0';
         }
         else
         {
@@ -735,7 +736,7 @@ class Patcher
             $prev = $next;
             $next = $this->getNextVersion( $info, $prev, $toVersion );
 
-            if ( ! $next )
+            if ( null === $next )
             {
                 break;
             }
@@ -769,7 +770,7 @@ class Patcher
             $prev = $next;
             $next = $this->getPrevVersion( $info, $prev, $toVersion );
 
-            if ( ! $next )
+            if ( null === $next )
             {
                 break;
             }
@@ -781,7 +782,7 @@ class Patcher
         {
             $next = $this->getLastVersion( $info, $prev, $toVersion );
 
-            if ( $next )
+            if ( null !== $next )
             {
                 $this->runPatches( $info, $prev, $next );
                 $prev = $next;

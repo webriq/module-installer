@@ -508,7 +508,7 @@ class Patcher
 
         $fromVersion = $this->getVersion( $section, $schema );
 
-        if ( null === $toVersion || ! $fromVersion )
+        if ( null === $toVersion || ! $fromVersion || 0 === version_compare( $fromVersion, '0' ) )
         {
             $direction = 1;
         }
@@ -606,7 +606,6 @@ class Patcher
 
             if ( ! $newVersion || 0 === version_compare( $newVersion, '0' ) )
             {
-
                 $query = $db->prepare( '
                     DELETE FROM ' . $prefix . '"patch"
                           WHERE "section" = :section
@@ -615,9 +614,8 @@ class Patcher
                 $params = array(
                     'section' => $section,
                 );
-
             }
-            if ( $oldVersion )
+            else if ( $oldVersion && 0 !== version_compare( $oldVersion, '0' ) )
             {
                 $query = $db->prepare( '
                     UPDATE ' . $prefix . '"patch"
@@ -629,7 +627,6 @@ class Patcher
                     'version' => $newVersion,
                     'section' => $section,
                 );
-
             }
             else
             {
@@ -765,7 +762,7 @@ class Patcher
             $this->runPatches( $info, $prev, $next );
         }
 
-        if ( $prev !== $fromVersion )
+        if ( $prev !== $fromVersion && 0 !== version_compare( $prev, $fromVersion ) )
         {
             $this->setVersion( $section, $prev, $schema );
         }
@@ -810,7 +807,7 @@ class Patcher
             }
         }
 
-        if ( $prev !== $fromVersion )
+        if ( $prev !== $fromVersion && 0 !== version_compare( $prev, $fromVersion )  )
         {
             $this->setVersion( $section, $prev, $schema );
         }

@@ -465,7 +465,7 @@ class ModuleInstaller extends LibraryInstaller
         $this->repository = $repo;
         parent::install( $repo, $package );
 
-        $this->beforePatches( $package, 0, $package->getVersion() );
+        $this->beforePatches( $package, '0', $package->getVersion() );
 
         $modules = 0;
 
@@ -480,7 +480,7 @@ class ModuleInstaller extends LibraryInstaller
             $this->io->write( '' );
         }
 
-        $this->afterPatches( $package, 0, $package->getVersion() );
+        $this->afterPatches( $package, '0', $package->getVersion() );
     }
 
     /**
@@ -534,7 +534,7 @@ class ModuleInstaller extends LibraryInstaller
                                PackageInterface $package )
     {
         $this->repository = $repo;
-        $this->beforePatches( $package, $package->getVersion(), 0 );
+        $this->beforePatches( $package, $package->getVersion(), '0' );
 
         if ( $repo->hasPackage( $package ) )
         {
@@ -552,7 +552,7 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
-        $this->afterPatches( $package, $package->getVersion(), 0 );
+        $this->afterPatches( $package, $package->getVersion(), '0' );
 
         parent::uninstall( $repo, $package );
     }
@@ -753,7 +753,7 @@ class ModuleInstaller extends LibraryInstaller
         ) );
 
         $this->removePublic( $path, $package );
-        $this->patch( $path, $package, 0 );
+        $this->patch( $path, $package, '0' );
     }
 
     /**

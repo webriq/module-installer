@@ -579,7 +579,7 @@ class Patcher
 
         if ( empty( $this->versionCache[$schema][$section] ) )
         {
-            return 0;
+            return '0';
         }
 
         return $this->versionCache[$schema][$section];
@@ -596,12 +596,27 @@ class Patcher
     protected function setVersion( $section, $newVersion, $schema = null )
     {
         $oldVersion = $this->getVersion( $section, $schema );
+        $newVersion = (string) $newVersion;
 
         if ( $oldVersion !== $newVersion )
         {
             $db     = $this->getDb();
             $prefix = $schema ? static::quoteIdentifier( $schema ) . '.' : '';
+            $params = array();
 
+            if ( ! $newVersion || 0 === version_compare( $newVersion, '0' ) )
+            {
+
+                $query = $db->prepare( '
+                    DELETE FROM ' . $prefix . '"patch"
+                          WHERE "section" = :section
+                ' );
+
+                $params = array(
+                    'section' => $section,
+                );
+
+            }
             if ( $oldVersion )
             {
                 $query = $db->prepare( '
@@ -610,6 +625,11 @@ class Patcher
                      WHERE "section" = :section
                 ' );
 
+                $params = array(
+                    'version' => $newVersion,
+                    'section' => $section,
+                );
+
             }
             else
             {
@@ -617,13 +637,14 @@ class Patcher
                     INSERT INTO ' . $prefix . '"patch" ( "section", "version" )
                          VALUES ( :section, :version )
                 ' );
+
+                $params = array(
+                    'section' => $section,
+                    'version' => $newVersion,
+                );
             }
 
-            $query->execute( array(
-                'version' => $newVersion,
-                'section' => $section,
-            ) );
-
+            $query->execute( $params );
             $this->versionCache[$schema][$section] = $newVersion;
         }
 

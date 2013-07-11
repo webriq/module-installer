@@ -137,18 +137,18 @@ abstract class AbstractPatch implements PatchInterface
         {
             if ( $whereSql )
             {
-                $whereSql .= '
-               AND ';
+                $whereSql .= ' AND ';
             }
 
             $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
         }
 
+        $quote = array( get_called_class(), 'quoteIdentifier' );
         $query = $this->query(
             sprintf(
                 'SELECT %s FROM %s WHERE %s ORDER BY %s ASC LIMIT 1',
                 static::quoteIdentifier( $column ),
-                implode( '.', array_map( array( get_called_class(), 'quoteIdentifier' ), (array) $table ) ),
+                implode( '.', array_map( $quote, (array) $table ) ),
                 $whereSql ?: 'TRUE',
                 static::quoteIdentifier( $column )
             ),
@@ -161,6 +161,61 @@ abstract class AbstractPatch implements PatchInterface
         }
 
         return $query->fetchObject()->$column;
+    }
+
+    /**
+     * Update fields in a table
+     *
+     * @param   array|string    $table
+     * @param   array           $set
+     * @param   array           $where
+     * @return  int
+     */
+    protected function updateTable( $table, array $set, array $where )
+    {
+        $setSql   = '';
+        $whereSql = '';
+        $params   = array();
+
+        foreach ( $set as $col => $value )
+        {
+            if ( $setSql )
+            {
+                $setSql .= ', ';
+            }
+
+            $setSql .= static::quoteIdentifier( $col ) . ' = :set_' . $col;
+            $params['set_' . $col] = $value;
+        }
+
+        if ( empty( $setSql ) )
+        {
+            return null;
+        }
+
+        foreach ( $where as $col => $value )
+        {
+            if ( $whereSql )
+            {
+                $whereSql .= ' AND ';
+            }
+
+            $whereSql .= static::quoteIdentifier( $col ) . ' = :where_' . $col;
+            $params['where_' . $col] = $value;
+        }
+
+        $quote = array( get_called_class(), 'quoteIdentifier' );
+        $query = $this->query(
+            sprintf(
+                'UPDATE %s SET %s WHERE %s',
+                implode( '.', array_map( $quote, (array) $table ) ),
+                $setSql,
+                $whereSql ?: 'TRUE'
+            ),
+            $params
+        );
+
+        return $query->rowCount();
     }
 
     /**
@@ -193,10 +248,11 @@ abstract class AbstractPatch implements PatchInterface
             $values  .= ':' . $field;
         }
 
+        $quote = array( get_called_class(), 'quoteIdentifier' );
         $query = $this->query(
             sprintf(
                 'INSERT INTO %s ( %s ) VALUES ( %s )',
-                implode( '.', array_map( array( get_called_class(), 'quoteIdentifier' ), $table ) ),
+                implode( '.', array_map( $quote, $table ) ),
                 $columns,
                 $values
             ),

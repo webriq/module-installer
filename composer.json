@@ -1,5 +1,5 @@
 {
-    "name": "webriq/gridguyz-installer",
+    "name": "gridguyz/module-installer",
     "type": "composer-installer",
     "description": "Composer installer for types: gridguyz-module & gridguyz-modules",
     "license": "CC-BY-SA-3.0",

@@ -264,12 +264,12 @@ abstract class AbstractPatch implements PatchInterface
         $quote = array( get_called_class(), 'quoteIdentifier' );
         $query = $this->query(
             sprintf(
-                'SELECT %s FROM %s WHERE %s%s LIMIT 1',
+                'SELECT %s FROM %s',
                 implode( ', ', array_map( $quote, (array) $columns ) ),
-                implode( '.',  array_map( $quote, (array) $table   ) ),
-                $whereSql ?: 'TRUE',
-                $orderSql ? ' ORDER BY ' . $orderSql : ''
-            ),
+                implode( '.',  array_map( $quote, (array) $table   ) )
+            ) .
+            $whereSql ? ' WHERE '    . $whereSql : '' .
+            $orderSql ? ' ORDER BY ' . $orderSql : '',
             $where
         );
 

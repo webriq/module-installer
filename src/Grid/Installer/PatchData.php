@@ -172,6 +172,26 @@ class PatchData
                 };
             }
 
+            if ( is_array( $validator ) && (
+                    count( $validator ) != 2 || ! function_exists( $validator )
+                ) )
+            {
+                $values    = (array) $validator;
+                $validator = function ( $value ) use ( $values )
+                {
+                    if ( ! in_array( $value, $values ) )
+                    {
+                        throw new LogicException( sprintf(
+                            '"%s" is not available, only "%s" accepted',
+                            $value,
+                            implode( '", "', $values )
+                        ) );
+                    }
+
+                    return $value;
+                };
+            }
+
             if ( is_callable( $validator ) )
             {
                 $result = $this->io->askAndValidate( $ask, $validator, $attempts, $default );

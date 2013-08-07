@@ -345,7 +345,7 @@ class ModuleInstaller extends LibraryInstaller
         $this->getPatchData()
              ->addData( $this->getConfigData( 'db' ) );
 
-        if ( isset( $extra['patch-data-file'] ) )
+        if ( isset( $extra['patch-data-file'] ) && is_file( $extra['patch-data-file'] ) )
         {
             switch ( strrchr( $extra['patch-data-file'], '.' ) )
             {

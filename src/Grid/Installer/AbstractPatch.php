@@ -265,8 +265,8 @@ abstract class AbstractPatch implements PatchInterface
         $query = $this->query(
             sprintf(
                 'SELECT %s FROM %s WHERE %s%s LIMIT 1',
-                implode( '.', array_map( $quote, (array) $columns ) ),
-                implode( '.', array_map( $quote, (array) $table ) ),
+                implode( ', ', array_map( $quote, (array) $columns ) ),
+                implode( '.',  array_map( $quote, (array) $table   ) ),
                 $whereSql ?: 'TRUE',
                 $orderSql ? ' ORDER BY ' . $orderSql : ''
             ),

@@ -351,7 +351,7 @@ class ModuleInstaller extends LibraryInstaller
             {
                 case '.inc':
                 case '.php':
-                    $data = include $extra['patch-data-file'];
+                    $data = (array) include $extra['patch-data-file'];
                     break;
 
                 case '.json':

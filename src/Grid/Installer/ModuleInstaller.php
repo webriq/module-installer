@@ -345,6 +345,31 @@ class ModuleInstaller extends LibraryInstaller
         $this->getPatchData()
              ->addData( $this->getConfigData( 'db' ) );
 
+        if ( isset( $extra['patch-data-file'] ) )
+        {
+            switch ( strrchr( $extra['patch-data-file'], '.' ) )
+            {
+                case '.inc':
+                case '.php':
+                    $data = include $extra['patch-data-file'];
+                    break;
+
+                case '.json':
+                    $data = @ json_decode( file_get_contents( $extra['patch-data-file'] ), true );
+                    break;
+
+                case '.ini':
+                    $data = @ parse_ini_file( $extra['patch-data-file'], true );
+                    break;
+
+                default:
+                    $data = array();
+            }
+
+            $this->getPatchData()
+                 ->addData( $data );
+        }
+
         if ( isset( $extra['patch-data'] ) )
         {
             $this->getPatchData()

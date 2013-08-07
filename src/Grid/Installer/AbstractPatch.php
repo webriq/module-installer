@@ -268,8 +268,8 @@ abstract class AbstractPatch implements PatchInterface
                 implode( ', ', array_map( $quote, (array) $columns ) ),
                 implode( '.',  array_map( $quote, (array) $table   ) )
             ) .
-            $whereSql ? ' WHERE '    . $whereSql : '' .
-            $orderSql ? ' ORDER BY ' . $orderSql : '',
+            ( $whereSql ? ' WHERE '    . $whereSql : '' ) .
+            ( $orderSql ? ' ORDER BY ' . $orderSql : '' ),
             $where
         );
 

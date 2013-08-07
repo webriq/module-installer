@@ -129,7 +129,9 @@ abstract class AbstractPatch implements PatchInterface
      * @param   array           $where
      * @return  int
      */
-    protected function selectFromTable( $table, $column, array $where = array() )
+    protected function selectFromTable( $table,
+                                        $column,
+                                        array $where = array() )
     {
         $whereSql = '';
 
@@ -161,6 +163,127 @@ abstract class AbstractPatch implements PatchInterface
         }
 
         return $query->fetchObject()->$column;
+    }
+
+    /**
+     * Select a column from a table
+     *
+     * @param   array|string    $table
+     * @param   string          $column
+     * @param   array           $where
+     * @return  int
+     */
+    protected function selectColumnFromTable( $table,
+                                              $column,
+                                              array $where = array() )
+    {
+        $whereSql = '';
+
+        foreach ( $where as $col => $value )
+        {
+            if ( $whereSql )
+            {
+                $whereSql .= ' AND ';
+            }
+
+            $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
+        }
+
+        $quote = array( get_called_class(), 'quoteIdentifier' );
+        $query = $this->query(
+            sprintf(
+                'SELECT %s FROM %s WHERE %s ORDER BY %s ASC LIMIT 1',
+                static::quoteIdentifier( $column ),
+                implode( '.', array_map( $quote, (array) $table ) ),
+                $whereSql ?: 'TRUE',
+                static::quoteIdentifier( $column )
+            ),
+            $where
+        );
+
+        if ( ! $query->rowCount() )
+        {
+            return null;
+        }
+
+        return $query->fetchColumn();
+    }
+
+    /**
+     * Select a column from a table
+     *
+     * @param   array|string    $table
+     * @param   array|string    $columns
+     * @param   array           $where
+     * @param   array           $order
+     * @return  int
+     */
+    protected function selectRowsFromTable( $table,
+                                            $columns,
+                                            array $where = array(),
+                                            array $order = array() )
+    {
+        $whereSql = '';
+        $orderSql = '';
+
+        foreach ( $where as $col => $value )
+        {
+            if ( $whereSql )
+            {
+                $whereSql .= ' AND ';
+            }
+
+            $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
+        }
+
+        foreach ( $order as $col => $direction )
+        {
+            if ( $orderSql )
+            {
+                $orderSql .= ', ';
+            }
+
+            switch ( strtoupper( $direction ) )
+            {
+                case '':
+                case '0':
+                case 'DESC':
+                    $direction = 'DESC';
+                    break;
+
+                case '1':
+                case 'ASC':
+                default:
+                    $direction = 'ASC';
+                    break;
+            }
+
+            $orderSql .= static::quoteIdentifier( $col ) . ' ' . $direction;
+        }
+
+        $quote = array( get_called_class(), 'quoteIdentifier' );
+        $query = $this->query(
+            sprintf(
+                'SELECT %s FROM %s WHERE %s%s LIMIT 1',
+                implode( '.', array_map( $quote, (array) $columns ) ),
+                implode( '.', array_map( $quote, (array) $table ) ),
+                $whereSql ?: 'TRUE',
+                $orderSql ? ' ORDER BY ' . $orderSql : ''
+            ),
+            $where
+        );
+
+        $rows = array();
+
+        if ( $query->rowCount() )
+        {
+            while ( $row = $query->fetchObject() )
+            {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
     }
 
     /**

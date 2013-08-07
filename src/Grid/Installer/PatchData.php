@@ -14,6 +14,11 @@ class PatchData
 {
 
     /**
+     * @const string
+     */
+    const PADDING = '      ';
+
+    /**
      * IO
      *
      * @var \Composer\IO\IOInterface
@@ -88,6 +93,18 @@ class PatchData
     }
 
     /**
+     * Has a patch-data already exists?
+     *
+     * @param   string  $section
+     * @param   string  $key
+     * @return  string
+     */
+    public function has( $section, $key )
+    {
+        return ! empty( $this->data[$section][$key] );
+    }
+
+    /**
      * Get a patch-data
      *
      * @param   string          $section
@@ -100,7 +117,13 @@ class PatchData
      * @return  string
      * @throws  Exception\DomainException
      */
-    public function get( $section, $key, $ask = null, $default = null, $validator = null, $attempts = 3, $throwIfEmpty = true )
+    public function get( $section,
+                         $key,
+                         $ask           = null,
+                         $default       = null,
+                         $validator     = null,
+                         $attempts      = 3,
+                         $throwIfEmpty  = true )
     {
         if ( ! empty( $this->data[$section][$key] ) )
         {
@@ -120,7 +143,7 @@ class PatchData
                 $question .= ' (default: <info>' . $default . '</info>)';
             }
 
-            $ask    = '      ' . $question . ': ';
+            $ask    = static::PADDING . $question . ': ';
             $hidden = false;
 
             if ( true === $validator )
@@ -182,6 +205,26 @@ class PatchData
         }
 
         return $result;
+    }
+
+    /**
+     * Print choices
+     *
+     * @param   string  $label
+     * @param   array   $choices
+     * @return  void
+     */
+    public function printChoices( $label, array $choices )
+    {
+        if ( $this->io->isInteractive() && ! empty( $choices ) )
+        {
+            $this->io->write( static::PADDING . $label );
+
+            foreach ( $choices as $choice => $description )
+            {
+                $this->io->write( static::PADDING . " * <info>$choice</info>: $description" );
+            }
+        }
     }
 
 }

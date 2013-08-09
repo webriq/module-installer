@@ -74,10 +74,9 @@ abstract class AbstractPatch implements PatchInterface
     /**
      * Constructor
      *
-     * @param   PatchData   $patchData
-     * @param   Patcher     $patcher
+     * @param   ModuleInstaller $installer
      */
-    public function __construct( ModuleInstaller $installer )
+    public function __construct( /* ModuleInstaller */ $installer )
     {
         $this->installer = $installer;
     }

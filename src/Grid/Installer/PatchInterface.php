@@ -15,7 +15,7 @@ interface PatchInterface
      *
      * @param   ModuleInstaller $installer
      */
-    public function __construct( ModuleInstaller $installer );
+    public function __construct( /* ModuleInstaller */ $installer );
 
     /**
      * Run before patching

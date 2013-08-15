@@ -99,12 +99,18 @@ class ModuleInstaller extends LibraryInstaller
      * @var array
      */
     protected $chmodEntries = array(
+        'public',
         'public/thumbnails',
         'public/uploads',
         'public/tmp',
         'public/tmp/captcha',
         'data',
+        'data/cache',
+        'data/my-translations',
+        'data/update',
         'log',
+        'log/exception',
+        'log/mail',
     );
 
     /**

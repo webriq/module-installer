@@ -203,7 +203,7 @@ class ModuleInstaller extends LibraryInstaller
      * @param   string  $config
      * @return  string
      */
-    protected function getConfigFile( $config )
+    public function getConfigFile( $config )
     {
         $extra = $this->getExtra();
 
@@ -314,7 +314,7 @@ class ModuleInstaller extends LibraryInstaller
      * @param   array   $array
      * @param   array   $with
      */
-    private static function merge( array & $array, array & $with )
+    public static function merge( array & $array, array & $with )
     {
         foreach ( $with as $key => & $value )
         {

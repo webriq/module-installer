@@ -276,6 +276,26 @@ class ModuleInstaller extends LibraryInstaller
     }
 
     /**
+     * Clear config data cache
+     *
+     * @param   string|null $config
+     * @return  \Grid\Installer\ModuleInstaller
+     */
+    public function clearConfigDataCache( $config = null )
+    {
+        if ( empty( $config ) )
+        {
+            $this->configData = array();
+        }
+        else
+        {
+            unset( $this->configData[$config] );
+        }
+
+        return $this;
+    }
+
+    /**
      * Merge config data (& write to file)
      *
      * @param   array   $data

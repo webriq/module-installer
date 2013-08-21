@@ -433,17 +433,35 @@ class ModuleInstaller extends LibraryInstaller
         }
 
         $host   = $this->getPatchData()
-                       ->get( 'db', 'host', 'Type your PostgreSQL database\'s host', 'localhost' );
+                       ->get( 'db',
+                              'host',
+                              'Type your PostgreSQL database\'s host',
+                              'localhost' );
         $port   = (int) $this->getPatchData()
-                             ->get( 'db', 'port', 'Type your PostgreSQL database\'s port', '5432' );
+                             ->get( 'db',
+                                    'port',
+                                    'Type your PostgreSQL database\'s port',
+                                    '5432' );
         $user   = $this->getPatchData()
-                       ->get( 'db', 'username', 'Type your PostgreSQL database\'s username' );
+                       ->get( 'db',
+                              'username',
+                              'Type your PostgreSQL database\'s username' );
         $passwd = $this->getPatchData()
-                       ->get( 'db', 'password', 'Type your PostgreSQL database\'s password', null, true );
+                       ->get( 'db',
+                              'password',
+                              'Type your PostgreSQL database\'s password',
+                              null,
+                              true );
         $dbname = $this->getPatchData()
-                       ->get( 'db', 'dbname', 'Type your PostgreSQL database\'s dbname', 'gridguyz' );
+                       ->get( 'db',
+                              'dbname',
+                              'Type your PostgreSQL database\'s dbname',
+                              'gridguyz' );
         $schema = $this->getPatchData()
-                       ->get( 'db', 'schema', 'Type your PostgreSQL database\'s schema name', 'site' );
+                       ->get( 'db',
+                              'schema',
+                              'Type your PostgreSQL database\'s schema name',
+                              preg_replace( '/[^a-zA-Z0-9_]/', '_', $dbname ) );
 
         if ( ! is_array( $schema ) )
         {

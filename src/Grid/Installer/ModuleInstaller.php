@@ -682,23 +682,78 @@ class ModuleInstaller extends LibraryInstaller
             {
                 foreach ( (array) $extra['patch-classes'] as $class => $path )
                 {
+                    $cleanUp = false;
+
                     if ( $path )
                     {
-                        require_once $basePath . '/' . ltrim( $path, '/' );
+                        $effectiveClass = $class;
+                        $fullPath       = $basePath . '/' . ltrim( $path, '/' );
+
+                        if ( ! is_file( $fullPath ) || ! is_readable( $fullPath ) )
+                        {
+                            throw new Exception\RuntimeException( sprintf(
+                                '%s: file not found (or not readable) at "%s" for patch class "%s"',
+                                __METHOD__,
+                                $path,
+                                $class
+                            ) );
+                        }
+
+                        if ( class_exists( $class ) )
+                        {
+                            $suffix   = 0;
+                            $basePath = preg_replace( '/\\.(php|inc)$/', '', $fullPath );
+
+                            while ( class_exists( $class . '_tmp' . $suffix ) ||
+                                    is_file( $basePath . '_tmp'. $suffix . '.php' ) )
+                            {
+                                $suffix++;
+                            }
+
+                            $suffix         = '_tmp' . $suffix;
+                            $effectiveClass = $class . $suffix;
+                            $cleanUp        = $basePath . $suffix . '.php';
+
+                            file_put_contents(
+                                $cleanUp,
+                                preg_replace(
+                                    '/class\\s+([^\\s\\{]+)/',
+                                    'class $1' . $suffix,
+                                    file_get_contents( $fullPath ),
+                                    1
+                                )
+                            );
+
+                            $fullPath = $cleanUp;
+                        }
+
+                        require_once $fullPath;
                     }
 
-                    if ( ! class_exists( $class ) )
+                    if ( ! class_exists( $effectiveClass ) )
                     {
+                        if ( $cleanUp )
+                        {
+                            unlink( $cleanUp );
+                            $cleanUp = false;
+                        }
+
                         throw new Exception\RuntimeException( sprintf(
-                            '%s: class "%s" not found at "%s"',
+                            '%s: patch class "%s" not found in file "%s"',
                             __METHOD__,
                             $class,
                             $path
                         ) );
                     }
 
-                    $patch = new $class( $this );
+                    $patch = new $effectiveClass( $this );
                     $patch->$method( $from, $to );
+
+                    if ( $cleanUp )
+                    {
+                        unlink( $cleanUp );
+                        $cleanUp = false;
+                    }
                 }
 
                 $db->commit();

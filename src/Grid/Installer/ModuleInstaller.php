@@ -1126,6 +1126,7 @@ class ModuleInstaller extends LibraryInstaller
             );
 
             $this->getPatcher()
+                 ->clearPatchInfoCache()
                  ->patch( array( $dir ), $toVersion, $onlySchemas );
         }
     }

@@ -322,6 +322,25 @@ class Patcher
     }
 
     /**
+     * Clear patch-info cache
+     *
+     * @return  Patcher
+     */
+    public function clearPatchInfoCache( $path = null )
+    {
+        if ( null === $path )
+        {
+            $this->patchInfoCache = array();
+        }
+        else
+        {
+            unset( $this->patchInfoCache[$path] );
+        }
+
+        return $this;
+    }
+
+    /**
      * Patch with sql-files under multiple paths
      *
      * @param   string|array|\Traversable   $paths
@@ -740,33 +759,186 @@ class Patcher
      */
     private function runPatches( $info, $fromVersion, $toVersion )
     {
+        foreach ( array( 'schema', 'data' ) as $type )
+        {
+            $patchFiles = $this->findPatchFiles(
+                $info,
+                $fromVersion,
+                $toVersion,
+                $type
+            );
+
+            foreach ( $patchFiles as $patchFile )
+            {
+                $this->runPatchFile( $patchFile );
+            }
+        }
+    }
+
+    /**
+     * Run a single patch file
+     *
+     * @param   string  $file
+     * @return  void
+     * @throws  Exception\RuntimeException
+     */
+    private function runPatchFile( $file )
+    {
         $db     = $this->getDb();
         $log    = $this->getLog();
 
-        foreach ( $info as $patch )
+        try
         {
-            if ( $patch['from'] == $fromVersion && $patch['to'] == $toVersion )
-            {
-                try
+            $db->exec( file_get_contents( $file ) );
+        }
+        catch ( PDOException $exception )
+        {
+            throw new Exception\RuntimeException(
+                sprintf(
+                    'PDOException: "%s"%s occured in patch: "%s"',
+                    $exception->getMessage(),
+                    PHP_EOL,
+                    $file
+                ),
+                0,
+                $exception
+            );
+        }
+
+        $log( 'Patch ran at %s', $file );
+    }
+
+    /**
+     * Find patch files form a version to another
+     *
+     * @param   array   $info
+     * @param   string  $fromVersion
+     * @param   string  $toVersion
+     * @param   string  $type
+     * @return  array
+     */
+    private function findPatchFiles( $info, $fromVersion, $toVersion, $type )
+    {
+        $direction = version_compare( $toVersion, $fromVersion );
+
+        if ( 0 == $direction )
+        {
+            return array();
+        }
+
+        $exact = $this->findExactPatchFile(
+            $info,
+            $fromVersion,
+            $toVersion,
+            $type
+        );
+
+        if ( null !== $exact )
+        {
+            return array( $exact );
+        }
+
+        $paths = array();
+        $prev = $next = $fromVersion;
+
+        switch ( true )
+        {
+            case $direction > 0: // upgrade
+                while ( true )
                 {
-                    $db->exec( file_get_contents( $patch['path'] ) );
-                    $log( 'Pacth ran at %s', $patch['path'] );
-                }
-                catch ( PDOException $exception )
-                {
-                    throw new Exception\RuntimeException(
-                        sprintf(
-                            'PDOException: "%s"%s occured in patch: "%s"',
-                            $exception->getMessage(),
-                            PHP_EOL,
-                            $patch['path']
-                        ),
-                        0,
-                        $exception
+                    $prev = $next;
+                    $next = $this->getNextVersion(
+                        $info,
+                        $prev,
+                        $toVersion,
+                        $type
+                    );
+
+                    if ( null === $next )
+                    {
+                        break;
+                    }
+
+                    $paths[] = $this->findExactPatchFile(
+                        $info,
+                        $prev,
+                        $next,
+                        $type
                     );
                 }
+                break;
+
+            case $direction < 0: // downgrade
+                while ( true )
+                {
+                    $prev = $next;
+                    $next = $this->getPrevVersion(
+                        $info,
+                        $prev,
+                        $toVersion,
+                        $type
+                    );
+
+                    if ( null === $next )
+                    {
+                        break;
+                    }
+
+                    $paths[] = $this->findExactPatchFile(
+                        $info,
+                        $prev,
+                        $next,
+                        $type
+                    );
+                }
+
+                if ( $prev !== $toVersion )
+                {
+                    $next = $this->getLastVersion(
+                        $info,
+                        $prev,
+                        $toVersion,
+                        $type
+                    );
+
+                    if ( null !== $next )
+                    {
+                        $paths[] = $this->findExactPatchFile(
+                            $info,
+                            $prev,
+                            $next,
+                            $type
+                        );
+                    }
+                }
+                break;
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Find an exact patch file form a version to another
+     *
+     * @param   array   $info
+     * @param   string  $fromVersion
+     * @param   string  $toVersion
+     * @param   string  $type
+     * @return  string|null
+     */
+    private function findExactPatchFile( $info, $fromVersion, $toVersion, $type )
+    {
+        foreach ( $info as $patch )
+        {
+            if ( $patch['from'] == $fromVersion &&
+                 $patch['to']   == $toVersion &&
+                 $patch['type'] == $type )
+            {
+                return $patch['path'];
             }
         }
+
+        return null;
     }
 
     /**
@@ -851,17 +1023,23 @@ class Patcher
     /**
      * Get next version
      *
-     * @param   array   $info
-     * @param   string  $fromVersion
-     * @param   string  $toVersion
+     * @param   array       $info
+     * @param   string      $fromVersion
+     * @param   string      $toVersion
+     * @param   null|string $type
      * @return  string
      */
-    private function getNextVersion( $info, $fromVersion, $toVersion )
+    private function getNextVersion( $info, $fromVersion, $toVersion, $type = null )
     {
         $max = null;
 
         foreach ( $info as $patch )
         {
+            if ( null !== $type && $patch['type'] != $type )
+            {
+                continue;
+            }
+
             if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '>' ) &&
               // ( no max || ( current is greater than max                && ( no upper bound || current is under the upper bound                ) ) )
                  ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '<=' ) ) ) ) )
@@ -876,17 +1054,23 @@ class Patcher
     /**
      * Get prev version
      *
-     * @param   array   $info
-     * @param   string  $fromVersion
-     * @param   string  $toVersion
+     * @param   array       $info
+     * @param   string      $fromVersion
+     * @param   string      $toVersion
+     * @param   null|string $type
      * @return  string
      */
-    private function getPrevVersion( $info, $fromVersion, $toVersion )
+    private function getPrevVersion( $info, $fromVersion, $toVersion, $type = null )
     {
         $min = null;
 
         foreach ( $info as $patch )
         {
+            if ( null !== $type && $patch['type'] != $type )
+            {
+                continue;
+            }
+
             if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
                 // ( no min || ( current is lesser than min                 && ( no lower bound || current is above the lower bound                ) ) )
                    ( ! $min || ( version_compare( $patch['to'], $min, '<' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '>=' ) ) ) ) )
@@ -901,17 +1085,23 @@ class Patcher
     /**
      * Get last version
      *
-     * @param   array   $info
-     * @param   string  $fromVersion
-     * @param   string  $toVersion
+     * @param   array       $info
+     * @param   string      $fromVersion
+     * @param   string      $toVersion
+     * @param   null|string $type
      * @return  string
      */
-    private function getLastVersion( $info, $fromVersion, $toVersion )
+    private function getLastVersion( $info, $fromVersion, $toVersion, $type = null )
     {
         $max = null;
 
         foreach ( $info as $patch )
         {
+            if ( null !== $type && $patch['type'] != $type )
+            {
+                continue;
+            }
+
             if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
                 // ( no max || ( current is greater than max                && current is under the lower bound                ) )
                    ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && version_compare( $patch['to'], $toVersion, '<=' ) ) ) )

@@ -483,7 +483,7 @@ class ModuleInstaller extends LibraryInstaller
 
         try
         {
-            $this->patcher  = new Patcher( $dbConfigData );
+            $this->patcher  = new Patcher( $dbConfigData, array( $this, 'patchLog' ) );
             $db             = $this->getPatcher()->getDb();
         }
         catch ( PDOException $ex )
@@ -515,6 +515,33 @@ class ModuleInstaller extends LibraryInstaller
         {
             $this->setConfigData( 'db', array( 'db' => $dbConfigData ) );
         }
+    }
+
+    /**
+     * Patch log callback
+     *
+     * @param   string  $format
+     * @patam   string  $...
+     * @return  void
+     */
+    public function patchLog( $format )
+    {
+        $params = func_get_args();
+        $format = (string) array_shift( $params );
+
+        foreach ( $params as & $param )
+        {
+            if ( null === $param )
+            {
+                $param = '<comment>null</comment>';
+            }
+            else
+            {
+                $param = '<info>' . $param . '</info>';
+            }
+        }
+
+        $this->io->write( '          ' . vsprintf( $format, $params ) );
     }
 
     /**

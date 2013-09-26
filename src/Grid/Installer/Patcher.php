@@ -32,6 +32,13 @@ class Patcher
     private $db;
 
     /**
+     * Log callback - like printf()
+     *
+     * @var null|callable
+     */
+    private $log;
+
+    /**
      * Is current db a multisite?
      *
      * @var bool
@@ -146,16 +153,18 @@ class Patcher
             $this->checkSchemaExists( $schema );
         }
 
-        $db->exec(
-            'SET search_path TO ' .
-            implode(
-                ', ',
-                array_map(
-                    array( __CLASS__, 'quoteIdentifier' ),
-                    $schemas
-                )
+        $setSql = implode(
+            ', ',
+            array_map(
+                array( __CLASS__, 'quoteIdentifier' ),
+                $schemas
             )
         );
+
+        $db->exec( 'SET search_path TO ' . $setSql );
+
+        $log = $this->getLog();
+        $log( 'Set current schema to %s', $setSql );
 
         return $oldSchema;
     }
@@ -265,12 +274,31 @@ class Patcher
     }
 
     /**
+     * Get log callback
+     *
+     * @return  callable
+     */
+    public function getLog()
+    {
+        return is_callable( $this->log ) ? $this->log : array( $this, 'noop' );
+    }
+
+    /**
+     * Dummy fallback for log callback
+     */
+    public function noop()
+    {
+        // dummy function
+    }
+
+    /**
      * Constructor
      *
      * @param   null|array|PDO  $db
+     * @param   null|callable   $log
      * @throws  Exception\InvalidArgumentException
      */
-    public function __construct( $db = null )
+    public function __construct( $db = null, callable $log = null )
     {
         if ( $db instanceof \PDO )
         {
@@ -289,6 +317,8 @@ class Patcher
                 is_object( $db ) ? get_class( $db ) : gettype( $db )
             ) );
         }
+
+        $this->log = $log;
     }
 
     /**
@@ -645,6 +675,9 @@ class Patcher
             $this->versionCache[$schema][$section] = $newVersion;
         }
 
+        $log = $this->getLog();
+        $log( 'Set version to %s at section %s in schema %s', $newVersion, $section, $schema );
+
         return $this;
     }
 
@@ -707,7 +740,8 @@ class Patcher
      */
     private function runPatches( $info, $fromVersion, $toVersion )
     {
-        $db = $this->getDb();
+        $db     = $this->getDb();
+        $log    = $this->getLog();
 
         foreach ( $info as $patch )
         {
@@ -716,6 +750,7 @@ class Patcher
                 try
                 {
                     $db->exec( file_get_contents( $patch['path'] ) );
+                    $log( 'Pacth ran at %s', $patch['path'] );
                 }
                 catch ( PDOException $exception )
                 {

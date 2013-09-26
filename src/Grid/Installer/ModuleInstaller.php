@@ -549,7 +549,7 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
-        $this->io->write( '          ' . vsprintf( $format, $params ) );
+        $this->io->write( '[patcher] ' . vsprintf( $format, $params ) );
     }
 
     /**

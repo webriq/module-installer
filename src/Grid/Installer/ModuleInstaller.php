@@ -537,6 +537,14 @@ class ModuleInstaller extends LibraryInstaller
             }
             else
             {
+                $param = (string) $param;
+
+                if ( preg_match( '#^([/\\\\]|[a-zA-Z]:[/\\\\])#', $param )
+                     && file_exists( $param ) )
+                {
+                    $param = $this->getRelativePath( $param );
+                }
+
                 $param = '<info>' . $param . '</info>';
             }
         }

@@ -298,13 +298,21 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * Merge config data (& write to file)
      *
-     * @param   array   $data
+     * @param   string      $config
+     * @param   array       $data
+     * @param   callable    $map
      * @return  ModuleInstaller
      */
-    public function mergeConfigData( $config, array $data )
+    public function mergeConfigData( $config, array $data, callable $map = null )
     {
         $merge = $this->getConfigData( $config );
         self::merge( $merge, $data );
+
+        if ( is_callable( $map ) )
+        {
+            $merge = $map( $merge );
+        }
+
         return $this->setConfigData( $config, $merge );
     }
 

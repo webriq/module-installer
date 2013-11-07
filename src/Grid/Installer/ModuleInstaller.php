@@ -1133,6 +1133,11 @@ class ModuleInstaller extends LibraryInstaller
                 )
             );
 
+            if ( preg_match( '/^dev-./', $toVersion ) )
+            {
+                $toVersion = null;
+            }
+
             $this->getPatcher()
                  ->clearPatchInfoCache()
                  ->patch( array( $dir ), $toVersion, $onlySchemas );

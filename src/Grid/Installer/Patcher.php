@@ -635,7 +635,9 @@ class Patcher
             SELECT column_name
               FROM information_schema.columns
              WHERE table_name   = \'patch\'
-               AND table_schema = ' . ( empty( $schema ) ? 'current_schema' : ':schema' ) . '
+               AND table_schema = ' . ( empty( $schema )
+                                        ? 'current_schema'
+                                        : ':schema' ) . '
         ' );
 
         $query->execute( empty( $schema ) ? null : array(

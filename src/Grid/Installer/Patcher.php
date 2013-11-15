@@ -629,23 +629,27 @@ class Patcher
      */
     private function fixPatchTable( $schema, $prefix, $addColumns )
     {
-        $db = $this->getDb();
+        $columnExists   = array();
+        $db             = $this->getDb();
+        $query          = $db->query( '
+            SELECT column_name
+              FROM information_schema.columns
+             WHERE table_name   = \'patch\'
+               AND table_schema = ' . ( empty( $schema ) ? 'current_schema' : ':schema' ) . '
+        ' );
+
+        $query->execute( empty( $schema ) ? null : array(
+            'schema' => $schema,
+        ) );
+
+        while ( $row = $query->fetchObject() )
+        {
+            $columnExists[$row->column_name] = true;
+        }
 
         foreach ( $addColumns as $column => $definition )
         {
-            $check = $db->query( '
-                SELECT column_name
-                  FROM information_schema.columns
-                 WHERE column_name  = \'fix\'
-                   AND table_name   = \'patch\'
-                   AND table_schema = ' . ( empty( $schema ) ? 'current_schema' : ':schema' ) . '
-            ' );
-
-            $check->execute( empty( $schema ) ? null : array(
-                'schema' => $schema,
-            ) );
-
-            if ( $check->rowCount() < 1 )
+            if ( empty( $columnExists[$column] ) )
             {
                 $db->exec( '
                     ALTER TABLE ' . $prefix . '"patch"

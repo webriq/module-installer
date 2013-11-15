@@ -631,7 +631,7 @@ class Patcher
     {
         $columnExists   = array();
         $db             = $this->getDb();
-        $query          = $db->query( '
+        $query          = $db->prepare( '
             SELECT column_name
               FROM information_schema.columns
              WHERE table_name   = \'patch\'

@@ -1135,7 +1135,7 @@ class ModuleInstaller extends LibraryInstaller
 
             if ( preg_match( '/^dev-./', $toVersion ) )
             {
-                $toVersion = null;
+                $toVersion = '9999999-' . $toVersion;
             }
 
             $this->getPatcher()

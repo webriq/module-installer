@@ -19,7 +19,12 @@ class Patcher
     /**
      * @const string
      */
-    const PATCH_PATTERN = '/^(?P<type>data|schema)\.(?P<from>\d+(\.((dev|a|b|rc)\d*|\d+))*)-(?P<to>\d+(\.((dev|a|b|rc)\d*|\d+))*)\.sql$/';
+    const FIX_PATTERN = '/^fix\.(?P<version>\d+(\.((dev|a|b|rc)\d*|\d+))*)-(?P<fix>\d+)\.sql$/i';
+
+    /**
+     * @const string
+     */
+    const PATCH_PATTERN = '/^(?P<type>data|schema)\.(?P<from>\d+(\.((dev|a|b|rc)\d*|\d+))*)-(?P<to>\d+(\.((dev|a|b|rc)\d*|\d+))*)\.sql$/i';
 
     /**
      * @var array
@@ -65,6 +70,13 @@ class Patcher
      * @var array
      */
     private $versionCache = array();
+
+    /**
+     * Patch info cache
+     *
+     * @var array
+     */
+    private $fixInfoCache = array();
 
     /**
      * Patch info cache
@@ -330,10 +342,12 @@ class Patcher
     {
         if ( null === $path )
         {
+            $this->fixInfoCache   = array();
             $this->patchInfoCache = array();
         }
         else
         {
+            unset( $this->fixInfoCache[$path] );
             unset( $this->patchInfoCache[$path] );
         }
 
@@ -423,7 +437,10 @@ class Patcher
      * @param   array|null  $onlySchemas
      * @return  void
      */
-    protected function patchSection( $path, $section, $toVersion = null, $onlySchemas = null )
+    protected function patchSection( $path,
+                                     $section,
+                                     $toVersion     = null,
+                                     $onlySchemas   = null )
     {
         if ( is_dir( $dir = $path . '/common' ) && ( null === $onlySchemas || in_array( '_common', $onlySchemas ) ) )
         {
@@ -548,38 +565,53 @@ class Patcher
      * @param   string|null $toVersion
      * @return  void
      */
-    protected function patchSchema( $path, $section, $schema = null, $toVersion = null )
+    protected function patchSchema( $path,
+                                    $section,
+                                    $schema     = null,
+                                    $toVersion  = null )
     {
         if ( null !== $schema )
         {
             $oldSchema = $this->setDbSchema( $schema );
         }
 
-        $fromVersion = $this->getVersion( $section, $schema );
+        $from = $this->getVersion( $section, $schema );
 
-        if ( null === $toVersion || ! $fromVersion || 0 === version_compare( $fromVersion, '0' ) )
+        if ( null === $toVersion || ! $from->version || version_compare( $from->version, '0', '==' ) )
         {
             $direction = 1;
         }
-        else if ( ! $toVersion || 0 === version_compare( $toVersion, '0' ) )
+        else if ( ! $toVersion || version_compare( $toVersion, '0', '==' ) )
         {
             $direction = -1;
             $toVersion = '0';
         }
         else
         {
-            $direction = version_compare( $toVersion, $fromVersion );
+            $direction = version_compare( $toVersion, $from->version );
         }
 
-        switch ( true )
+        if ( $direction < 0 )
         {
-            case $direction > 0:
-                $this->upgradeSchema( $path, $section, $fromVersion, $toVersion, $schema );
-                break;
-
-            case $direction < 0:
-                $this->downgradeSchema( $path, $section, $fromVersion, $toVersion, $schema );
-                break;
+            $this->downgradeSchema(
+                $path,
+                $section,
+                $from->version,
+                $from->fix,
+                $toVersion,
+                $schema
+            );
+        }
+        else
+        {
+            $this->upgradeSchema(
+                $path,
+                $section,
+                $from->version,
+                $from->fix,
+                $toVersion,
+                $schema
+            );
         }
 
         if ( null !== $schema )
@@ -589,11 +621,47 @@ class Patcher
     }
 
     /**
+     * Fix patch table
+     *
+     * @param   string  $schema
+     * @param   string  $prefix
+     * @param   array   $addColumns
+     */
+    private function fixPatchTable( $schema, $prefix, $addColumns )
+    {
+        $db = $this->getDb();
+
+        foreach ( $addColumns as $column => $definition )
+        {
+            $check = $db->query( '
+                SELECT column_name
+                  FROM information_schema.columns
+                 WHERE column_name  = \'fix\'
+                   AND table_name   = \'patch\'
+                   AND table_schema = ' . ( empty( $schema ) ? 'current_schema' : ':schema' ) . '
+            ' );
+
+            $check->execute( empty( $schema ) ? null : array(
+                'schema' => $schema,
+            ) );
+
+            if ( $check->rowCount() < 1 )
+            {
+                $db->exec( '
+                    ALTER TABLE ' . $prefix . '"patch"
+                     ADD COLUMN ' . static::quoteIdentifier( $column ) . '
+                                ' . $definition . '
+                ' );
+            }
+        }
+    }
+
+    /**
      * Get version of section (in a schema)
      *
      * @param   string      $section
      * @param   string|null $schema
-     * @return  string
+     * @return  object
      */
     protected function getVersion( $section, $schema = null )
     {
@@ -613,22 +681,34 @@ class Patcher
                 (
                     "id"        SERIAL              PRIMARY KEY,
                     "section"   CHARACTER VARYING   NOT NULL        UNIQUE,
-                    "version"   CHARACTER VARYING   NOT NULL
+                    "version"   CHARACTER VARYING   NOT NULL,
+                    "fix"       INTEGER             NOT NULL        DEFAULT 0
                 )
             ' );
+
+            $this->fixPatchTable( $schema, $quoted, array(
+                'fix' => 'INTEGER  NOT NULL  DEFAULT 0',
+            ) );
 
             $query = $db->query( 'SELECT * FROM ' . $quoted . '"patch"' );
             $query->execute();
 
             while ( $row = $query->fetchObject() )
             {
-                $this->versionCache[$schema][$row->section] = $row->version;
+                $this->versionCache[$schema][$row->section] = $row;
             }
         }
 
+        $section = (string) $section;
+
         if ( empty( $this->versionCache[$schema][$section] ) )
         {
-            return '0';
+            return (object) array(
+                'id'        => null,
+                'section'   => $section,
+                'version'   => '0',
+                'fix'       => '0',
+            );
         }
 
         return $this->versionCache[$schema][$section];
@@ -639,21 +719,26 @@ class Patcher
      *
      * @param   string      $section
      * @param   string      $newVersion
+     * @param   int         $newFix
      * @param   string|null $schema
      * @return  \Zork\Patcher\Patcher
      */
-    protected function setVersion( $section, $newVersion, $schema = null )
+    protected function setVersion( $section,
+                                   $newVersion,
+                                   $newFix,
+                                   $schema = null )
     {
-        $oldVersion = $this->getVersion( $section, $schema );
+        $old        = $this->getVersion( $section, $schema );
         $newVersion = (string) $newVersion;
+        $newFix     = (string) (int) $newFix;
 
-        if ( $oldVersion !== $newVersion )
+        if ( $old->version !== $newVersion || $old->fix !== $newFix )
         {
             $db     = $this->getDb();
             $prefix = $schema ? static::quoteIdentifier( $schema ) . '.' : '';
             $params = array();
 
-            if ( ! $newVersion || 0 === version_compare( $newVersion, '0' ) )
+            if ( ! $newVersion || version_compare( $newVersion, '0', '==' ) )
             {
                 $query = $db->prepare( '
                     DELETE FROM ' . $prefix . '"patch"
@@ -664,40 +749,107 @@ class Patcher
                     'section' => $section,
                 );
             }
-            else if ( $oldVersion && 0 !== version_compare( $oldVersion, '0' ) )
+            else if ( $old->version && version_compare( $old->version, '0', '>' ) )
             {
                 $query = $db->prepare( '
                     UPDATE ' . $prefix . '"patch"
-                       SET "version" = :version
-                     WHERE "section" = :section
+                       SET "version"    = :version,
+                           "fix"        = :fix
+                     WHERE "section"    = :section
                 ' );
 
                 $params = array(
-                    'version' => $newVersion,
-                    'section' => $section,
+                    'section'   => $section,
+                    'version'   => $newVersion,
+                    'fix'       => $newFix,
                 );
             }
             else
             {
                 $query = $db->prepare( '
-                    INSERT INTO ' . $prefix . '"patch" ( "section", "version" )
-                         VALUES ( :section, :version )
+                    INSERT INTO ' . $prefix . '"patch" ( "section", "version", "fix" )
+                         VALUES ( :section, :version, :fix )
                 ' );
 
                 $params = array(
-                    'section' => $section,
-                    'version' => $newVersion,
+                    'section'   => $section,
+                    'version'   => $newVersion,
+                    'fix'       => $newFix,
                 );
             }
 
             $query->execute( $params );
-            $this->versionCache[$schema][$section] = $newVersion;
+
+            if ( isset( $this->versionCache[$schema][$section] ) )
+            {
+                $this->versionCache[$schema][$section]->version = $newVersion;
+                $this->versionCache[$schema][$section]->fix     = $newFix;
+            }
+            else
+            {
+                $id = $db->lastInsertId( $prefix . '"patch_id_seq"' );
+
+                $this->versionCache[$schema][$section] = (object) array(
+                    'id'        => $id,
+                    'section'   => $section,
+                    'version'   => $newVersion,
+                    'fix'       => $newFix,
+                );
+            }
         }
 
         $log = $this->getLog();
-        $log( 'Set version to %s at section %s in schema %s', $newVersion, $section, $schema );
+
+        $log(
+            'Set version to %s (fix %s) at section %s in schema %s',
+            $newVersion,
+            $newFix,
+            $section,
+            $schema
+        );
 
         return $this;
+    }
+
+    /**
+     * Get fix info
+     *
+     * @param   string $path
+     * @return  array
+     */
+    protected function getFixInfo( $path )
+    {
+        if ( isset( $this->fixInfoCache[$path] ) )
+        {
+            return $this->fixInfoCache[$path];
+        }
+
+        $iterator = new FilesystemIterator(
+            $path,
+            FilesystemIterator::CURRENT_AS_PATHNAME |
+            FilesystemIterator::KEY_AS_FILENAME |
+            FilesystemIterator::SKIP_DOTS |
+            FilesystemIterator::UNIX_PATHS
+        );
+
+        $cache = array();
+
+        foreach ( $iterator as $name => $pathname )
+        {
+            $matches = array();
+
+            if ( preg_match( static::FIX_PATTERN, $name, $matches ) )
+            {
+                $cache[] = array(
+                    'name'      => $name,
+                    'path'      => $pathname,
+                    'version'   => strtolower( $matches['version'] ),
+                    'fix'       => (int) $matches['fix'],
+                );
+            }
+        }
+
+        return $this->fixInfoCache[$path] = $cache;
     }
 
     /**
@@ -733,9 +885,9 @@ class Patcher
                 $store = array(
                     'name'  => $name,
                     'path'  => $pathname,
-                    'type'  => $matches['type'],
-                    'from'  => $matches['from'],
-                    'to'    => $matches['to'],
+                    'type'  => strtolower( $matches['type'] ),
+                    'from'  => strtolower( $matches['from'] ),
+                    'to'    => strtolower( $matches['to'] ),
                 );
 
                 switch ( $matches['type'] )
@@ -773,6 +925,69 @@ class Patcher
                 $this->runPatchFile( $patchFile );
             }
         }
+    }
+
+    /**
+     * Run fixes from exact fix & return last ran fix
+     *
+     * @param   array   $info
+     * @param   string  $version
+     * @param   int     $fromFix
+     * @return  int
+     */
+    private function runFixes( $info, $version, $fromFix )
+    {
+        $run        = array();
+        $fromFix    = (int) $fromFix;
+
+        foreach ( $info as $fix )
+        {
+            $i = (int) $fix['fix'];
+
+            if ( ( $fix['version'] == $version ||
+                   version_compare( $fix['version'], $version, '==' ) ) &&
+                 $i > $fromFix )
+            {
+                $run[$i] = $fix['path'];
+            }
+        }
+
+        ksort( $run );
+        $lastFix = $fromFix;
+
+        foreach ( $run as $fix => $path )
+        {
+            $this->runPatchFile( $path );
+            $lastFix = $fix;
+        }
+
+        return $lastFix;
+    }
+
+    /**
+     * Find max fix at an exact version, from info
+     *
+     * @param   array   $info
+     * @param   string  $version
+     * @return  int
+     */
+    private function findMaxFix( $info, $version )
+    {
+        $max = 0;
+
+        foreach ( $info as $fix )
+        {
+            $i = (int) $fix['fix'];
+
+            if ( ( $fix['version'] == $version ||
+                   version_compare( $fix['version'], $version, '==' ) ) &&
+                 $i > $max )
+            {
+                $max = $i;
+            }
+        }
+
+        return $max;
     }
 
     /**
@@ -926,7 +1141,10 @@ class Patcher
      * @param   string  $type
      * @return  string|null
      */
-    private function findExactPatchFile( $info, $fromVersion, $toVersion, $type )
+    private function findExactPatchFile( $info,
+                                         $fromVersion,
+                                         $toVersion,
+                                         $type )
     {
         foreach ( $info as $patch )
         {
@@ -947,12 +1165,26 @@ class Patcher
      * @param   string      $path
      * @param   string      $section
      * @param   string      $fromVersion
+     * @param   int         $fromFix
      * @param   string|null $toVersion
      * @param   string|null $schema
      * @return  void
      */
-    private function upgradeSchema( $path, $section, $fromVersion, $toVersion = null, $schema = null )
+    private function upgradeSchema( $path,
+                                    $section,
+                                    $fromVersion,
+                                    $fromFix,
+                                    $toVersion  = null,
+                                    $schema     = null )
     {
+        $fixInfo    = $this->getFixInfo( $path );
+        $newFix     = $this->runFixes( $fixInfo, $fromVersion, (int) $fromFix );
+
+        if ( $newFix > $fromFix )
+        {
+            $this->setVersion( $section, $fromVersion, $newFix, $schema );
+        }
+
         $info = $this->getPatchInfo( $path );
         $prev = $next = $fromVersion;
 
@@ -969,9 +1201,11 @@ class Patcher
             $this->runPatches( $info, $prev, $next );
         }
 
-        if ( $prev !== $fromVersion && 0 !== version_compare( $prev, $fromVersion ) )
+        if ( $prev !== $fromVersion &&
+             version_compare( $prev, $fromVersion, '!=' ) )
         {
-            $this->setVersion( $section, $prev, $schema );
+            $newFix = $this->findMaxFix( $fixInfo, $prev );
+            $this->setVersion( $section, $prev, $newFix, $schema );
         }
     }
 
@@ -981,11 +1215,17 @@ class Patcher
      * @param   string      $path
      * @param   string      $section
      * @param   string      $fromVersion
+     * @param   int         $fromFix
      * @param   string|null $toVersion
      * @param   string|null $schema
      * @return  void
      */
-    private function downgradeSchema( $path, $section, $fromVersion, $toVersion = null, $schema = null )
+    private function downgradeSchema( $path,
+                                      $section,
+                                      $fromVersion,
+                                      $fromFix,
+                                      $toVersion    = null,
+                                      $schema       = null )
     {
         $info = $this->getPatchInfo( $path );
         $prev = $next = $fromVersion;
@@ -1014,9 +1254,12 @@ class Patcher
             }
         }
 
-        if ( $prev !== $fromVersion && 0 !== version_compare( $prev, $fromVersion )  )
+        if ( $prev !== $fromVersion &&
+             version_compare( $prev, $fromVersion, '!=' ) )
         {
-            $this->setVersion( $section, $prev, $schema );
+            $fixInfo    = $this->getFixInfo( $path );
+            $newFix     = $this->findMaxFix( $fixInfo, $prev );
+            $this->setVersion( $section, $prev, $newFix, $schema );
         }
     }
 
@@ -1029,7 +1272,10 @@ class Patcher
      * @param   null|string $type
      * @return  string
      */
-    private function getNextVersion( $info, $fromVersion, $toVersion, $type = null )
+    private function getNextVersion( $info,
+                                     $fromVersion,
+                                     $toVersion,
+                                     $type = null )
     {
         $max = null;
 
@@ -1040,7 +1286,8 @@ class Patcher
                 continue;
             }
 
-            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '>' ) &&
+            if ( $patch['from'] == $fromVersion &&
+                 version_compare( $patch['to'], $patch['from'], '>' ) &&
               // ( no max || ( current is greater than max                && ( no upper bound || current is under the upper bound                ) ) )
                  ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '<=' ) ) ) ) )
             {
@@ -1060,7 +1307,10 @@ class Patcher
      * @param   null|string $type
      * @return  string
      */
-    private function getPrevVersion( $info, $fromVersion, $toVersion, $type = null )
+    private function getPrevVersion( $info,
+                                     $fromVersion,
+                                     $toVersion,
+                                     $type = null )
     {
         $min = null;
 
@@ -1071,7 +1321,8 @@ class Patcher
                 continue;
             }
 
-            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
+            if ( $patch['from'] == $fromVersion &&
+                 version_compare( $patch['to'], $patch['from'], '<' ) &&
                 // ( no min || ( current is lesser than min                 && ( no lower bound || current is above the lower bound                ) ) )
                    ( ! $min || ( version_compare( $patch['to'], $min, '<' ) && ( ! $toVersion || version_compare( $patch['to'], $toVersion, '>=' ) ) ) ) )
             {
@@ -1091,7 +1342,10 @@ class Patcher
      * @param   null|string $type
      * @return  string
      */
-    private function getLastVersion( $info, $fromVersion, $toVersion, $type = null )
+    private function getLastVersion( $info,
+                                     $fromVersion,
+                                     $toVersion,
+                                     $type = null )
     {
         $max = null;
 
@@ -1102,7 +1356,8 @@ class Patcher
                 continue;
             }
 
-            if ( $patch['from'] == $fromVersion && version_compare( $patch['to'], $patch['from'], '<' ) &&
+            if ( $patch['from'] == $fromVersion &&
+                 version_compare( $patch['to'], $patch['from'], '<' ) &&
                 // ( no max || ( current is greater than max                && current is under the lower bound                ) )
                    ( ! $max || ( version_compare( $patch['to'], $max, '>' ) && version_compare( $patch['to'], $toVersion, '<=' ) ) ) )
             {

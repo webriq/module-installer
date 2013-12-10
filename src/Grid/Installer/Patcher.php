@@ -743,10 +743,11 @@ class Patcher
             $db     = $this->getDb();
             $prefix = $schema ? static::quoteIdentifier( $schema ) . '.' : '';
             $params = array();
+            $insert = false;
 
             if ( ! $newVersion || version_compare( $newVersion, '0', '==' ) )
             {
-                $query = $db->prepare( '
+                $query  = $db->prepare( '
                     DELETE FROM ' . $prefix . '"patch"
                           WHERE "section" = :section
                 ' );
@@ -757,7 +758,7 @@ class Patcher
             }
             else if ( $old->version && version_compare( $old->version, '0', '>' ) )
             {
-                $query = $db->prepare( '
+                $query  = $db->prepare( '
                     UPDATE ' . $prefix . '"patch"
                        SET "version"    = :version,
                            "fix"        = :fix
@@ -772,7 +773,8 @@ class Patcher
             }
             else
             {
-                $query = $db->prepare( '
+                $insert = true;
+                $query  = $db->prepare( '
                     INSERT INTO ' . $prefix . '"patch" ( "section", "version", "fix" )
                          VALUES ( :section, :version, :fix )
                 ' );
@@ -791,7 +793,7 @@ class Patcher
                 $this->versionCache[$schema][$section]->version = $newVersion;
                 $this->versionCache[$schema][$section]->fix     = $newFix;
             }
-            else
+            else if ( $insert )
             {
                 $id = $db->lastInsertId( $prefix . '"patch_id_seq"' );
 
@@ -801,6 +803,23 @@ class Patcher
                     'version'   => $newVersion,
                     'fix'       => $newFix,
                 );
+            }
+            else
+            {
+                $query = $db->query( '
+                    SELECT *
+                      FROM ' . $prefix . '"patch"
+                     WHERE "section" = :section
+                ' );
+
+                $query->execute( array(
+                    'section' => $section,
+                ) );
+
+                while ( $row = $query->fetchObject() )
+                {
+                    $this->versionCache[$schema][$row->section] = $row;
+                }
             }
         }
 

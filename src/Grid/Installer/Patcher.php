@@ -794,7 +794,7 @@ class Patcher
             }
             else
             {
-                $query = $db->query( '
+                $query = $db->prepare( '
                     SELECT *
                       FROM ' . $prefix . '"patch"
                      WHERE "section" = :section

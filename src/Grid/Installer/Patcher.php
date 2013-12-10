@@ -773,7 +773,6 @@ class Patcher
             }
             else
             {
-                $insert = true;
                 $query  = $db->prepare( '
                     INSERT INTO ' . $prefix . '"patch" ( "section", "version", "fix" )
                          VALUES ( :section, :version, :fix )
@@ -792,17 +791,6 @@ class Patcher
             {
                 $this->versionCache[$schema][$section]->version = $newVersion;
                 $this->versionCache[$schema][$section]->fix     = $newFix;
-            }
-            else if ( $insert )
-            {
-                $id = $db->lastInsertId( $prefix . '"patch_id_seq"' );
-
-                $this->versionCache[$schema][$section] = (object) array(
-                    'id'        => $id,
-                    'section'   => $section,
-                    'version'   => $newVersion,
-                    'fix'       => $newFix,
-                );
             }
             else
             {

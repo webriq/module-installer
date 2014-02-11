@@ -141,7 +141,17 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
+            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+
+            if ( null === $value )
+            {
+                $whereSql .= 'IS NULL';
+                unset( $where[$col] );
+            }
+            else
+            {
+                $whereSql .= ':' . $col;
+            }
         }
 
         $quote = array( get_called_class(), 'quoteIdentifier' );
@@ -170,7 +180,7 @@ abstract class AbstractPatch implements PatchInterface
      * @param   array|string    $table
      * @param   string          $column
      * @param   array           $where
-     * @return  int
+     * @return  array
      */
     protected function selectColumnFromTable( $table,
                                               $column,
@@ -185,13 +195,23 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
+            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+
+            if ( null === $value )
+            {
+                $whereSql .= 'IS NULL';
+                unset( $where[$col] );
+            }
+            else
+            {
+                $whereSql .= ':' . $col;
+            }
         }
 
         $quote = array( get_called_class(), 'quoteIdentifier' );
         $query = $this->query(
             sprintf(
-                'SELECT %s FROM %s WHERE %s ORDER BY %s ASC LIMIT 1',
+                'SELECT %s FROM %s WHERE %s ORDER BY %s ASC',
                 static::quoteIdentifier( $column ),
                 implode( '.', array_map( $quote, (array) $table ) ),
                 $whereSql ?: 'TRUE',
@@ -202,10 +222,10 @@ abstract class AbstractPatch implements PatchInterface
 
         if ( ! $query->rowCount() )
         {
-            return null;
+            return array();
         }
 
-        return $query->fetchColumn();
+        return $query->fetchAll( PDO::FETCH_COLUMN );
     }
 
     /**
@@ -232,7 +252,17 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = :' . $col;
+            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+
+            if ( null === $value )
+            {
+                $whereSql .= 'IS NULL';
+                unset( $where[$col] );
+            }
+            else
+            {
+                $whereSql .= ':' . $col;
+            }
         }
 
         foreach ( $order as $col => $direction )
@@ -246,6 +276,7 @@ abstract class AbstractPatch implements PatchInterface
             {
                 case '':
                 case '0':
+                case '-1':
                 case 'DESC':
                     $direction = 'DESC';
                     break;
@@ -322,8 +353,17 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = :where_' . $col;
-            $params['where_' . $col] = $value;
+            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+
+            if ( null === $value )
+            {
+                $whereSql .= 'IS NULL';
+            }
+            else
+            {
+                $whereSql .= ':where_' . $col;
+                $params['where_' . $col] = $value;
+            }
         }
 
         $quote = array( get_called_class(), 'quoteIdentifier' );

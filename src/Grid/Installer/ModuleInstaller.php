@@ -526,13 +526,13 @@ class ModuleInstaller extends LibraryInstaller
     }
 
     /**
-     * Patch log callback
+     * Log callback
      *
      * @param   string  $format
      * @patam   string  $...
      * @return  void
      */
-    public function patchLog( $format )
+    public function log( $format )
     {
         $params = func_get_args();
         $format = (string) array_shift( $params );
@@ -557,7 +557,22 @@ class ModuleInstaller extends LibraryInstaller
             }
         }
 
-        $this->io->write( '[patcher] ' . vsprintf( $format, $params ) );
+        $this->io->write( vsprintf( $format, $params ) );
+    }
+
+    /**
+     * Patch log callback
+     *
+     * @param   string  $format
+     * @patam   string  $...
+     * @return  void
+     */
+    public function patchLog( $format )
+    {
+        $params = func_get_args();
+        $format = '[patcher] ' . (string) array_shift( $params );
+        array_unshift( $params, $format );
+        return call_user_func_array( array( $this, 'log' ), $params );
     }
 
     /**

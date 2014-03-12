@@ -440,7 +440,9 @@ abstract class AbstractPatch implements PatchInterface
         {
             if ( true === $seq )
             {
-                $seq = implode( '.', $table ) . '_id_seq';
+                $parts   = (array) $table;
+                $parts[] = array_pop( $parts ) . '_id_seq';
+                $seq     = implode( '.', array_map( $quote, $parts ) );
             }
 
             return $this->getDb()

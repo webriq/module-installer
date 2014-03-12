@@ -2,6 +2,8 @@
 
 namespace Grid\Installer;
 
+use PDOException;
+
 /**
  * AbstractPatch
  *
@@ -116,7 +118,20 @@ abstract class AbstractPatch implements PatchInterface
         $query = $this->getDb()
                       ->prepare( $sql );
 
-        $query->execute( $params );
+        try
+        {
+            $query->execute( $params );
+        }
+        catch ( PDOException $exception )
+        {
+            throw new Exception\RuntimeException(
+                $exception->getMessage() . PHP_EOL .
+                'in query:' . PHP_EOL . $sql,
+                $exception->getCode(),
+                $exception
+            );
+        }
+
         return $query;
     }
 

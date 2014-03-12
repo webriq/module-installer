@@ -141,16 +141,16 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+            $whereSql .= static::quoteIdentifier( $col );
 
             if ( null === $value )
             {
-                $whereSql .= 'IS NULL';
+                $whereSql .= ' IS NULL';
                 unset( $where[$col] );
             }
             else
             {
-                $whereSql .= ':' . $col;
+                $whereSql .= ' = :' . $col;
             }
         }
 
@@ -195,16 +195,16 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+            $whereSql .= static::quoteIdentifier( $col );
 
             if ( null === $value )
             {
-                $whereSql .= 'IS NULL';
+                $whereSql .= ' IS NULL';
                 unset( $where[$col] );
             }
             else
             {
-                $whereSql .= ':' . $col;
+                $whereSql .= ' = :' . $col;
             }
         }
 
@@ -252,16 +252,16 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+            $whereSql .= static::quoteIdentifier( $col );
 
             if ( null === $value )
             {
-                $whereSql .= 'IS NULL';
+                $whereSql .= ' IS NULL';
                 unset( $where[$col] );
             }
             else
             {
-                $whereSql .= ':' . $col;
+                $whereSql .= ' = :' . $col;
             }
         }
 
@@ -353,15 +353,15 @@ abstract class AbstractPatch implements PatchInterface
                 $whereSql .= ' AND ';
             }
 
-            $whereSql .= static::quoteIdentifier( $col ) . ' = ';
+            $whereSql .= static::quoteIdentifier( $col );
 
             if ( null === $value )
             {
-                $whereSql .= 'IS NULL';
+                $whereSql .= ' IS NULL';
             }
             else
             {
-                $whereSql .= ':where_' . $col;
+                $whereSql .= ' = :where_' . $col;
                 $params['where_' . $col] = $value;
             }
         }

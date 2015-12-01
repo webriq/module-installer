@@ -25,12 +25,12 @@ class ModuleInstaller extends LibraryInstaller
     /**
      * @const string
      */
-    const TYPE_MODULE = 'gridguyz-module';
+    const TYPE_MODULE = 'webriqcms-module';
 
     /**
      * @const string
      */
-    const TYPE_MODULES = 'gridguyz-modules';
+    const TYPE_MODULES = 'webriqcms-modules';
 
     /**
      * @const string
@@ -464,7 +464,7 @@ class ModuleInstaller extends LibraryInstaller
                        ->get( 'db',
                               'dbname',
                               'Type your PostgreSQL database\'s dbname',
-                              'gridguyz' );
+                              'webriqcms' );
         $schema = $this->getPatchData()
                        ->get( 'db',
                               'schema',
@@ -862,7 +862,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function installModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Install gridguyz-module: <info>%s</info>',
+            '    Install webriqcms-module: <info>%s</info>',
             $this->getRelativePath( $path )
         ) );
 
@@ -880,7 +880,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function beforeUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Before update gridguyz-module: <info>%s</info>',
+            '    Before update webriqcms-module: <info>%s</info>',
             $this->getRelativePath( $path )
         ) );
 
@@ -897,7 +897,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function afterUpdateModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    After update gridguyz-module: <info>%s</info>',
+            '    After update webriqcms-module: <info>%s</info>',
             $this->getRelativePath( $path )
         ) );
 
@@ -915,7 +915,7 @@ class ModuleInstaller extends LibraryInstaller
     protected function uninstallModule( $path, PackageInterface $package )
     {
         $this->io->write( sprintf(
-            '    Uninstall gridguyz-module: <info>%s</info>',
+            '    Uninstall webriqcms-module: <info>%s</info>',
             $this->getRelativePath( $path )
         ) );
 

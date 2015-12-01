@@ -1,32 +1,26 @@
 {
-    "name": "gridguyz/module-installer",
+    "name": "webriqcms/module-installer",
     "type": "composer-installer",
-    "description": "Composer installer for types: gridguyz-module & gridguyz-modules",
-    "license": "CC-BY-SA-3.0",
+    "description": "Composer installer for types: webriqcms-module & webriqcms-modules",
+    "license": "BSD-3-Clause",
     "keywords": [
-        "gridguyz",
+        "webriqcms",
         "composer-installer",
-        "gridguyz-module",
-        "gridguyz-modules"
+        "webriqcms-module",
+        "webriqcms-modules"
     ],
-    "homepage": "http://gridguyz.com/",
+    "homepage": "http://webriq.com/",
     "authors": [
         {
-            "name": "Mihály Farkas",
-            "email": "mihaly.farkas@megaweb.hu",
-            "homepage": "http://gridguyz.com/",
-            "role": "Developer"
-        },
-        {
-            "name": "David Pozsar",
-            "email": "david.pozsar@megaweb.hu",
-            "homepage": "http://gridguyz.com/",
-            "role": "Developer"
+            "name": "WebriQ Dev Team",
+            "email": "info@webriq.com",
+            "homepage": "http://webriq.com/",
+            "role": "Development Team"
         }
     ],
     "support": {
-        "email": "dev@megaweb.hu",
-        "source": "https://github.com/gridguyz/module-installer"
+        "email": "info@webriq.com",
+        "source": "https://github.com/webriq/module-installer"
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

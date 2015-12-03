@@ -1,11 +1,11 @@
-Gridguyz module-installer
+Module-installer
 =========================
 
-Composer installer for types: `gridguyz-module` & `gridguyz-modules`
+Composer installer for types: `webriq-module` & `webriq-modules`
 
 License
 -------
 
-Gridguyz is under **Creative Commons Attribution-ShareAlike 3.0** (cc-by-sa-3.0).
+WebriQ CMS is under BSD License.
 More info at [LICENSE.txt](LICENSE.txt).
 
